@@ -1,0 +1,33 @@
+//FROM MICROSOFT WEBSITE: (VSC Needs to be open by dev console for VS)
+//https://code.visualstudio.com/docs/cpp/config-msvc
+// {
+// 	"version": "2.0.0",
+// 	"tasks": [
+// 	  {
+// 		"label": "msvc build",
+// 		"type": "shell",
+// 		"command": "cl.exe",
+// 		"args": ["/EHsc", "/Zi", "/Fe:", "helloworld.exe", "main.cpp"],
+// 		"group": {
+// 		  "kind": "build",
+// 		  "isDefault": true
+// 		},
+// 		"presentation": {
+// 		  "reveal": "always"
+// 		},
+// 		"problemMatcher": "$msCompile"
+// 	  }
+// 	]
+//   }
+
+
+//BY .bat FILE:
+//https://devblogs.microsoft.com/cppblog/building-your-c-application-with-visual-studio-code/
+{  
+	"version": "0.1.0",
+	"windows": {
+	   "command": "build.bat",
+	   "isShellCommand": true,
+	   "showOutput": "always"
+	}
+}
