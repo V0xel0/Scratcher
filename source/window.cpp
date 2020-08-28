@@ -73,7 +73,8 @@ HWND CreateMainWindow(const int w, const int h, const char* name)
 	windowClass.lpszClassName = name;
 	//windowClass.hIconSm = LoadIcon(windowClass.hInstance, "IDI_ICON");
 
-	assert(RegisterClassExA(&windowClass) && "Class registration failed");
+	const s32 error = RegisterClassExA(&windowClass);
+	assert( error != 0 && "Class registration failed, error code:" && GetLastError());
 
 	RECT rc = { 0, 0, static_cast<LONG>(w), static_cast<LONG>(h) };
 	AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
@@ -93,7 +94,7 @@ HWND CreateMainWindow(const int w, const int h, const char* name)
 		instance,
 		nullptr);
 
-	assert(mainWindow && "Window creation failed");
+	assert(mainWindow && "Window creation failed, error code:" && GetLastError());
 
 	ShowWindow(mainWindow, SW_SHOW);
 	SetForegroundWindow(mainWindow);
