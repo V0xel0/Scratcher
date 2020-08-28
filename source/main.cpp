@@ -19,5 +19,5 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			}
 		}
 	}
-	UnregisterClassA("Scratcher", GetModuleHandle(nullptr)); //Do we need that?
+	UnregisterClassA("Scratcher", GetModuleHandle(nullptr)); // ? Do we need that?
 }
