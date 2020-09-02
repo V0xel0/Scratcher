@@ -3,7 +3,7 @@
 
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	CreateMainWindow(1920, 1080, "Scratcher");
+	HWND window = CreateMainWindow(1920, 1080, "Scratcher");
 	//Main Program Loop
 	bool isRunning = true;
 	while(isRunning)
@@ -12,7 +12,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			DispatchMessageA(&msg);
 			if (msg.message == WM_QUIT)
 			{
 				isRunning = false;
@@ -20,5 +20,5 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			}
 		}
 	}
-	UnregisterClassA("Scratcher", GetModuleHandle(nullptr)); // ? Do we need that?
+	UnregisterClassA("Scratcher", GetModuleHandleA(nullptr)); // ? Do we need that?
 }

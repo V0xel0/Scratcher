@@ -15,10 +15,10 @@ typedef int32_t s64;
 
 typedef uint8_t byte;
 
-#define KB(Value) ((Value)*1024LL)
-#define MB(Value) (KB(Value)*1024LL)
-#define GB(Value) (MB(Value)*1024LL)
-#define TB(Value) (GB(Value)*1024LL)
+#define KiB(Value) ((Value)*1024LL)
+#define MiB(Value) (KiB(Value)*1024LL)
+#define GiB(Value) (MiB(Value)*1024LL)
+#define TiB(Value) (GiB(Value)*1024LL)
 
 #define internal static
 #define local_persist static 
