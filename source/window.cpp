@@ -6,6 +6,24 @@ global_variable s32 bitmapWidth;
 global_variable s32 bitmapHeight;
 global_variable s32 bytesPerPixel = 4;
 
+// TEST-ONLY and assumption that pitch is gonna align with pixels
+void renderSomeGradient(const s32 offsetX, const s32 offsetY)
+{
+	s32 pitch = bitmapWidth*bytesPerPixel;
+	u32 *pixel = (u32*)bitmapMemory; 
+
+	for (size_t y = 0; y < bitmapHeight; y++)
+	{
+		for (size_t x = 0; x < bitmapWidth; x++)
+		{
+			u8 b = (u8)(x + offsetX);
+			u8 g = (u8)(y + offsetY);
+			u8 r = 255;
+
+			*pixel++ = ((r << 16) |(g << 8) | b);
+		}
+	}
+}
 namespace Win32
 {
 
@@ -29,21 +47,7 @@ internal void ResizeDIBSection(const s32 w, const s32 h)
 	u32 bitmapMemorySize = (bitmapWidth*bitmapHeight)*bytesPerPixel;
     bitmapMemory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-	// TEST-ONLY and assumption that pitch is gonna align with pixels
-	s32 pitch = w*bytesPerPixel;
-	u32 *pixel = (u32*)bitmapMemory; 
-
-	for (size_t y = 0; y < h; y++)
-	{
-		for (size_t x = 0; x < w; x++)
-		{
-			u8 b = (u8)x;
-			u8 g = (u8)y;
-			u8 r = 255;
-
-			*pixel++ = ((r << 16) |(g << 8) | b);
-		}
-	}
+	renderSomeGradient(0,0);
 }
 
 // Used for updating window contents when WM_PAINT msg from windows appears
