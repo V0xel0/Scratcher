@@ -50,8 +50,8 @@ internal void ResizeDIBSection(const s32 w, const s32 h)
 	renderSomeGradient(0,0);
 }
 
-// Used for updating window contents when WM_PAINT msg from windows appears
-internal void UpdateWindow(HDC deviceCtx, RECT *clientRect)
+// Used for updating window contents when WM_PAINT msg from windows appears or when we want to update
+void UpdateWindow(HDC deviceCtx, RECT *clientRect)
 {
 	s32 width = clientRect->right - clientRect->left;
 	s32 height = clientRect->bottom - clientRect->top;
@@ -101,10 +101,6 @@ LRESULT CALLBACK mainWindowCallback( HWND window, UINT message, WPARAM wParam, L
 		// When WM_PAINT from windows occur, we get the area to repaint and update it
 		PAINTSTRUCT Paint;
 		HDC deviceCtx = BeginPaint(window, &Paint);
-		s32 x = Paint.rcPaint.left;
-		s32 y = Paint.rcPaint.top;
-		s32 w = Paint.rcPaint.right - Paint.rcPaint.left;
-		s32 h = Paint.rcPaint.bottom - Paint.rcPaint.top;
 
 		RECT clientRect;
 		GetClientRect(window, &clientRect);
