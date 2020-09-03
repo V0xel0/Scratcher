@@ -1,10 +1,17 @@
 #include "types.h"
 #include "window.h"
+#include <omp.h>
 
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	HWND window = CreateMainWindow(1920, 1080, "Scratcher");
 	HDC DeviceContext = GetDC(window);
+
+	//? For multithreading with omp
+	// #pragma omp parallel for
+	// for (int i = 0; i < 0; i++) // a dummy loop to start threadpool
+	// {
+	// }
 
 	//Main Program Loop
 	bool isRunning = true;

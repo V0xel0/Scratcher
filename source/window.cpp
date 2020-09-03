@@ -1,4 +1,5 @@
 ﻿#include "window.h"
+#include <omp.h>
 
 global_variable BITMAPINFO bitmapInfo;
 global_variable void *bitmapMemory;
@@ -6,15 +7,16 @@ global_variable s32 bitmapWidth;
 global_variable s32 bitmapHeight;
 global_variable s32 bytesPerPixel = 4;
 
-// TEST-ONLY and assumption that pitch is gonna align with pixels
+// TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 void renderSomeGradient(const s32 offsetX, const s32 offsetY)
 {
 	s32 pitch = bitmapWidth*bytesPerPixel;
-	u32 *pixel = (u32*)bitmapMemory; 
+	u8 *row = (u8*)bitmapMemory;
 
-	for (size_t y = 0; y < bitmapHeight; y++)
+	for (s32 y = 0; y < bitmapHeight; y++)
 	{
-		for (size_t x = 0; x < bitmapWidth; x++)
+		u32 *pixel = (u32*)row;
+		for (s32 x = 0; x < bitmapWidth; x++)
 		{
 			u8 b = (u8)(x + offsetX);
 			u8 g = (u8)(y + offsetY);
@@ -22,7 +24,22 @@ void renderSomeGradient(const s32 offsetX, const s32 offsetY)
 
 			*pixel++ = ((r << 16) |(g << 8) | b);
 		}
+		row += pitch;
 	}
+	//? Multithreaded, but single core is slower cause of division and modulo
+	//omp_set_num_threads(12);
+	//#pragma omp parallel for
+	// for (int xy = 0; xy < bitmapWidth*bitmapHeight; ++xy) 
+	// {
+	// 	s32 x = xy % bitmapWidth;
+	// 	s32 y = xy / bitmapWidth;
+		
+	// 	u32 *pixel = ( (u32*)row ) + xy;
+	// 	u8 b = (u8)(x + offsetX);
+	// 	u8 g = (u8)(y + offsetY);
+	// 	u8 r = 255;
+	// 	*pixel = ((r << 16) |(g << 8) | b);
+	// }
 }
 namespace Win32
 {
