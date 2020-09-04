@@ -1,11 +1,26 @@
 #pragma once
 #include "platform.h"
 #include "types.h"
-HWND CreateMainWindow(const int w, const int h, const char* name = "Default");
 
-//! TODO: ONLY NOW FOR TESTS, LATER MOVE IT OUT!
-void renderSomeGradient(const s32 offsetX, const s32 offsetY);
 namespace Win32
 {
-	void UpdateWindow(HDC deviceCtx, RECT *clientRect);
+	struct ScreenBuffer
+	{
+		BITMAPINFO info;
+		void *memory;
+		s32 width;
+		s32 height;
+		s32 pitch;
+	};
+
+	struct WindowDimensions
+	{
+		s32 width;
+		s32 height;
+	};
+
+	HWND CreateMainWindow(const int w, const int h, const char* name = "Default");
+	void CreateScreenBuffer(ScreenBuffer *w32Buffer, const s32 w, const s32 h);
+	void UpdateWindow(HDC deviceCtx, s32 width, s32 height, ScreenBuffer w32Buffer);
+	WindowDimensions GetWindowClientDimensions(HWND window);
 }
