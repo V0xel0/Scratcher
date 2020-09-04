@@ -2,6 +2,8 @@
 #include "window.h"
 #include <omp.h>
 
+#include <xinput.h>
+
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 void testRender(Win32::ScreenBuffer w32Buffer, const s32 offsetX, const s32 offsetY)
 {
@@ -74,7 +76,10 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 				break;
 			}
 		}
+//=============================================INPUT==============================================================================================================
 
+
+//============================================RENDERING==============================================================================================================
 		testRender(screenbuffer, XOffset, YOffset);
 
 		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
