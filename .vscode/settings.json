@@ -1,5 +1,8 @@
 {
 	"files.associations": {
-		"cstdio": "cpp"
+		"cstdio": "cpp",
+		"iosfwd": "cpp",
+		"system_error": "cpp",
+		"xlocale": "cpp"
 	}
 }

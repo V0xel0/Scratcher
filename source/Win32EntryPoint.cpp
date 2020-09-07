@@ -1,7 +1,7 @@
 #include "types.h"
 #include "Win32Platform.h"
 #include <omp.h>
-#include <xinput.h>
+
 
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 offsetY)
@@ -43,20 +43,15 @@ void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 off
 #endif
 }
 
+
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1920, 1080);
-
-	//? For multithreading with omp
-	// #pragma omp parallel for
-	// for (int i = 0; i < 0; i++) // a dummy loop to start threadpool
-	// {
-	// }
+	Win32::LoadXInputLibrary();
 
 	bool isRunning = true;
-
 	s32 XOffset = 0;
 	s32 YOffset = 0;
 
@@ -74,15 +69,48 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 				break;
 			}
 		}
-//=============================================INPUT==============================================================================================================
 
+		//=============================================XINPUT==============================================================================================================
+		//TODO: Handle deadzone
+		for (DWORD gamePadID = 0; gamePadID < XUSER_MAX_COUNT; gamePadID++)
+		{
+			XINPUT_STATE gamePadState = {};
+			
+			if( Win32::XInputGetState(gamePadID, &gamePadState) == ERROR_SUCCESS )
+			{
+				XINPUT_GAMEPAD *gamePad = &gamePadState.Gamepad;
 
-//============================================RENDERING==============================================================================================================
+				bool up = (gamePad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
+				bool down = (gamePad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+				bool left = (gamePad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+				bool right = (gamePad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+				bool start = (gamePad->wButtons & XINPUT_GAMEPAD_START);
+				bool back = (gamePad->wButtons & XINPUT_GAMEPAD_BACK);
+				bool leftShoulder = (gamePad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+				bool rightShoulder = (gamePad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+				bool aButton = (gamePad->wButtons & XINPUT_GAMEPAD_A);
+				bool bButton = (gamePad->wButtons & XINPUT_GAMEPAD_B);
+				bool xButton = (gamePad->wButtons & XINPUT_GAMEPAD_X);
+				bool yButton = (gamePad->wButtons & XINPUT_GAMEPAD_Y);
+								
+				s16 triggerL = gamePad->sThumbLX;
+				s16 triggerR = gamePad->sThumbLY;
+
+				XOffset += triggerL >> 12;
+				YOffset -= triggerR >> 12;
+			}
+			else
+			{
+				// Controller is not connected
+			}
+		}
+
+		//============================================RENDERING==============================================================================================================
 		testRender(&Win32::internalBuffer, XOffset, YOffset);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 		
-		++XOffset;
-		YOffset += 2;
+		//++XOffset;
+		//YOffset += 2;
 	}
 	UnregisterClassA("Scratcher", GetModuleHandleA(nullptr)); // ? Do we need that?
 }

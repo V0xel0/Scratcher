@@ -1,9 +1,10 @@
 #pragma once
 #include "Win32WindowsFiles.h"
+#include <Xinput.h>
 
 // Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
 // In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is 
-// provided for all custom platform layer functions
+// provided for all custom platform layer functions and structures
 //! DO NOT INCLUDE IT ENYWHERE ELSE THAN IN WIN32 ENTRY POINT COMPILATION UNIT FILE!
 namespace Win32
 {
@@ -29,7 +30,7 @@ namespace Win32
 
 	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
 	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
-	void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
+	internal void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
 	{
 		assert(buffer != nullptr);
 		if(buffer->memory)
@@ -52,7 +53,7 @@ namespace Win32
 	}
 
 	// Used for getting dimensions of client area for passed window
-	WindowDimensions GetWindowClientDimensions(HWND window)
+	internal WindowDimensions GetWindowClientDimensions(HWND window)
 	{
 		WindowDimensions out;
 		RECT rect;
@@ -64,7 +65,7 @@ namespace Win32
 
 	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layer wants to update
 	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
-	void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer* buffer)
+	internal void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer *buffer)
 	{
 		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
 		// BitBlt might be faster
@@ -77,7 +78,7 @@ namespace Win32
 	}
 
 	// Windows callback functions for window messages processing. It is being called by "DispatchMessage" or directly by Windows
-	LRESULT CALLBACK mainWindowCallback( HWND window, UINT message, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK mainWindowCallback(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		LRESULT result = 0;
 
@@ -95,7 +96,7 @@ namespace Win32
 				// When WM_PAINT from windows occur, we get the area to repaint and update it
 				PAINTSTRUCT Paint;
 				HDC deviceCtx = BeginPaint(window, &Paint);
-				UpdateWindow(deviceCtx, window, &internalBuffer);
+				Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
 				EndPaint(window, &Paint);
 			}
 			break;
@@ -117,7 +118,7 @@ namespace Win32
 	}
 
 	// Creates window for current process, cause of CS_OWNDC device context is assumed to not be shared with anyone
-	HWND CreateMainWindow(const s32 w, const s32 h, const char* name)
+	internal HWND CreateMainWindow(const s32 w, const s32 h, const char *name)
 	{
 		HINSTANCE instance = nullptr;
 		HWND mainWindow = nullptr;
@@ -163,5 +164,41 @@ namespace Win32
 		SetFocus(mainWindow);
 
 		return mainWindow;
+	}
+
+	//===============================================XINPUT IMPLEMENTATIONS===================================================================================================
+
+	// XInputGetState defines -- "define/typedef trick" from handmadehero :)
+	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
+	typedef X_INPUT_GET_STATE(X_Input_Get_State);
+	X_INPUT_GET_STATE(XInputGetStateNotFound)
+	{
+		return 0;
+	}
+	global_variable X_Input_Get_State *xInputGetStatePtr = XInputGetStateNotFound;
+	#define XInputGetState xInputGetStatePtr
+
+	// XInputSetState defines
+	#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
+	typedef X_INPUT_SET_STATE(X_Input_Set_State);
+	X_INPUT_SET_STATE(XInputSetStateNotFound)
+	{
+		return 0;
+	}
+	global_variable X_Input_Set_State *xInputSetStatePtr = XInputSetStateNotFound;
+	#define XInputSetState xInputSetStatePtr
+
+	// Used to load xinput dll, if not found then above function pointers will point to "...NotFound" implementation ( return 0 )
+	internal void LoadXInputLibrary()    
+	{
+		HMODULE xInputLib = LoadLibraryA("xinput1_4.dll");
+		if(xInputLib)
+		{
+			XInputGetState = (X_Input_Get_State *)GetProcAddress(xInputLib, "XInputGetState");
+			if(!XInputGetState) {XInputGetState = XInputGetStateNotFound;}
+
+			XInputSetState = (X_Input_Set_State *)GetProcAddress(xInputLib, "XInputSetState");
+			if(!XInputSetState) {XInputSetState = XInputSetStateNotFound;}
+		}
 	}
 }
