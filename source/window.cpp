@@ -3,41 +3,43 @@
 
 namespace Win32
 {
+	constexpr global_variable s32 bytesPerPixel = 4;
 	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
 	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
-	void CreateScreenBuffer(ScreenBuffer *w32Buffer, const s32 w, const s32 h)
+	void CreateScreenBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
 	{
-		assert(w32Buffer != nullptr);
-		if(w32Buffer->memory)
+		assert(buffer != nullptr);
+		if(buffer->memory)
 		{
-			VirtualFree(w32Buffer->memory, 0, MEM_RELEASE);
+			VirtualFree(buffer->memory, 0, MEM_RELEASE);
 		}
-		w32Buffer->width = w;
-		w32Buffer->height = h;
+		buffer->width = w;
+		buffer->height = h;
 		const s32 pixelSize = 4;
 		// Set header info for bitmap
-		w32Buffer->info.bmiHeader.biSize = sizeof(w32Buffer->info.bmiHeader);
-		w32Buffer->info.bmiHeader.biWidth = w;
-		w32Buffer->info.bmiHeader.biHeight = -h;
-		w32Buffer->info.bmiHeader.biPlanes = 1;
-		w32Buffer->info.bmiHeader.biBitCount = 32;
-		w32Buffer->info.bmiHeader.biCompression = BI_RGB;
+		buffer->info.bmiHeader.biSize = sizeof(buffer->info.bmiHeader);
+		buffer->info.bmiHeader.biWidth = w;
+		buffer->info.bmiHeader.biHeight = -h;
+		buffer->info.bmiHeader.biPlanes = 1;
+		buffer->info.bmiHeader.biBitCount = 32;
+		buffer->info.bmiHeader.biCompression = BI_RGB;
 
-		u32 bitmapMemorySize = (w*h)*pixelSize;
-		w32Buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		buffer->pitch = AlignAddress16(buffer->width*bytesPerPixel);
+		u32 bitmapMemorySize = buffer->pitch*buffer->height;
+		buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
-		w32Buffer->pitch = w*pixelSize;
+		buffer->pitch = w*pixelSize;
 	}
 
 	// Used for updating window contents when WM_PAINT msg from windows appears or when we want to update
-	void UpdateWindow(HDC deviceCtx, s32 width, s32 height, ScreenBuffer w32Buffer)
+	void UpdateWindow(HDC deviceCtx, s32 width, s32 height, ScreenBuffer buffer)
 	{
 		// BitBlt might be faster
 		StretchDIBits(
 			deviceCtx, 
 			0,0,width,height,
-			0,0,w32Buffer.width,w32Buffer.height, 
-			w32Buffer.memory, &w32Buffer.info, 
+			0,0,buffer.width,buffer.height, 
+			buffer.memory, &buffer.info, 
 			DIB_RGB_COLORS, SRCCOPY);
 	}
 

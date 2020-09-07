@@ -23,3 +23,12 @@ typedef uint8_t byte;
 #define internal static
 #define local_persist static 
 #define global_variable static
+
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+#define AlignAddressPow2(Value, Alignment) ((Value + ((Alignment) - 1)) & ~((Alignment) - 1))
+#define AlignAddress4(Value) ((Value + 3) & ~3)
+#define AlignAddress8(Value) ((Value + 7) & ~7)
+#define AlignAddress16(Value) ((Value + 15) & ~15)
+
+#define AlignValuePow2(Value, Alignment) ((Value + ((Alignment) - 1)) & ~((Alignment))
