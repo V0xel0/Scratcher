@@ -46,7 +46,7 @@ void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 off
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
-	HDC DeviceContext = GetDC(window);
+	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1920, 1080);
 
 	//? For multithreading with omp
@@ -79,9 +79,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 
 //============================================RENDERING==============================================================================================================
 		testRender(&Win32::internalBuffer, XOffset, YOffset);
-
-		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
-		Win32::UpdateWindow(DeviceContext, dims.width, dims.height, &Win32::internalBuffer);
+		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 		
 		++XOffset;
 		YOffset += 2;

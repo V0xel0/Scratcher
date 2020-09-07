@@ -1,7 +1,9 @@
 #pragma once
 #include "Win32WindowsFiles.h"
 
-// Win32 Platform layer implementations, intended to be used with WINAPI WinMain only!
+// Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
+// In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is 
+// provided for all custom platform layer functions
 //! DO NOT INCLUDE IT ENYWHERE ELSE THAN IN WIN32 ENTRY POINT COMPILATION UNIT FILE!
 namespace Win32
 {
@@ -49,19 +51,6 @@ namespace Win32
 		buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	}
 
-	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layer wants to update
-	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
-	void UpdateWindow(HDC deviceCtx, const s32 width, const s32 height, ScreenBuffer* buffer)
-	{
-		// BitBlt might be faster
-		StretchDIBits(
-			deviceCtx, 
-			0,0,width,height,
-			0,0,buffer->width,buffer->height, 
-			buffer->memory, &buffer->info, 
-			DIB_RGB_COLORS, SRCCOPY);
-	}
-
 	// Used for getting dimensions of client area for passed window
 	WindowDimensions GetWindowClientDimensions(HWND window)
 	{
@@ -71,6 +60,20 @@ namespace Win32
 		out.width = rect.right - rect.left;
 		out.height = rect.bottom - rect.top;
 		return out;
+	}
+
+	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layer wants to update
+	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
+	void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer* buffer)
+	{
+		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
+		// BitBlt might be faster
+		StretchDIBits(
+			deviceCtx, 
+			0,0,dims.width,dims.height,
+			0,0,buffer->width,buffer->height, 
+			buffer->memory, &buffer->info, 
+			DIB_RGB_COLORS, SRCCOPY);
 	}
 
 	// Windows callback functions for window messages processing. It is being called by "DispatchMessage" or directly by Windows
@@ -92,9 +95,7 @@ namespace Win32
 				// When WM_PAINT from windows occur, we get the area to repaint and update it
 				PAINTSTRUCT Paint;
 				HDC deviceCtx = BeginPaint(window, &Paint);
-
-				WindowDimensions dims = GetWindowClientDimensions(window);
-				UpdateWindow(deviceCtx, dims.width, dims.height, &internalBuffer);
+				UpdateWindow(deviceCtx, window, &internalBuffer);
 				EndPaint(window, &Paint);
 			}
 			break;
