@@ -1,12 +1,31 @@
-﻿#include "window.h"
-#include <omp.h>
+#pragma once
+#include "Win32WindowsFiles.h"
 
 namespace Win32
 {
+	struct ScreenBuffer
+	{
+		BITMAPINFO info;
+		void *memory;
+		s32 width;
+		s32 height;
+		s32 pitch;
+	};
+
+	struct WindowDimensions
+	{
+		s32 width;
+		s32 height;
+	};
+
+	// One 4 bytes per pixel buffer with one not shared device context is assumed, so for API simplicity, 
+	// those two are internal globals and they are never exposed to application layer directly
 	constexpr global_variable s32 bytesPerPixel = 4;
-	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
+	global_variable ScreenBuffer internalBuffer = {};
+
 	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
-	void CreateScreenBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
+	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
+	void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
 	{
 		assert(buffer != nullptr);
 		if(buffer->memory)
@@ -31,15 +50,15 @@ namespace Win32
 		buffer->pitch = w*pixelSize;
 	}
 
-	// Used for updating window contents when WM_PAINT msg from windows appears or when we want to update
-	void UpdateWindow(HDC deviceCtx, s32 width, s32 height, ScreenBuffer buffer)
+	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layers wants to update
+	void UpdateWindow(HDC deviceCtx, s32 width, s32 height, ScreenBuffer* buffer)
 	{
 		// BitBlt might be faster
 		StretchDIBits(
 			deviceCtx, 
 			0,0,width,height,
-			0,0,buffer.width,buffer.height, 
-			buffer.memory, &buffer.info, 
+			0,0,buffer->width,buffer->height, 
+			buffer->memory, &buffer->info, 
 			DIB_RGB_COLORS, SRCCOPY);
 	}
 
@@ -53,7 +72,7 @@ namespace Win32
 		return out;
 	}
 
-	// Windows callback functions for window messages processing. It is being called by "DispatchMessage" or directly by windows
+	// Windows callback functions for window messages processing. It is being called by "DispatchMessage" or directly by Windows
 	LRESULT CALLBACK mainWindowCallback( HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		LRESULT result = 0;
@@ -67,17 +86,17 @@ namespace Win32
 			}
 			break;
 
-			// case WM_PAINT:
-			// {
-			// 	// When WM_PAINT from windows occur, we get the area to repaint and update it
-			// 	PAINTSTRUCT Paint;
-			// 	HDC deviceCtx = BeginPaint(window, &Paint);
+			case WM_PAINT:
+			{
+				// When WM_PAINT from windows occur, we get the area to repaint and update it
+				PAINTSTRUCT Paint;
+				HDC deviceCtx = BeginPaint(window, &Paint);
 
-			// 	WindowDimensions dims = GetWindowClientDimensions(window);
-			// 	UpdateWindow(deviceCtx, dims.width, dims.height);
-			// 	EndPaint(window, &Paint);
-			// }
-			// break;
+				WindowDimensions dims = GetWindowClientDimensions(window);
+				UpdateWindow(deviceCtx, dims.width, dims.height, &internalBuffer);
+				EndPaint(window, &Paint);
+			}
+			break;
 
 			case WM_MENUCHAR:
 			{
@@ -95,7 +114,7 @@ namespace Win32
 		return (result);
 	}
 
-	// Creates window for current process
+	// Creates window for current process, cause of CS_OWNDC device context is assumed to not be shared with anyone
 	HWND CreateMainWindow(const s32 w, const s32 h, const char* name)
 	{
 		HINSTANCE instance = nullptr;

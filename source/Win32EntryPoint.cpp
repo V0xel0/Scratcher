@@ -1,16 +1,15 @@
 #include "types.h"
-#include "window.h"
+#include "Win32Platform.h"
 #include <omp.h>
-
 #include <xinput.h>
 
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
-void testRender(Win32::ScreenBuffer w32Buffer, const s32 offsetX, const s32 offsetY)
+void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 offsetY)
 {
-	s32 width = w32Buffer.width;
-	s32 height = w32Buffer.height;
+	s32 width = w32Buffer->width;
+	s32 height = w32Buffer->height;
 
-	u8 *row = (u8*)w32Buffer.memory;
+	u8 *row = (u8*)w32Buffer->memory;
 #if 1
 	for (s32 y = 0; y < height; y++)
 	{
@@ -23,7 +22,7 @@ void testRender(Win32::ScreenBuffer w32Buffer, const s32 offsetX, const s32 offs
 
 			*pixel++ = ((r << 16) | (g << 8) | b);
 		}
-		row += w32Buffer.pitch;
+		row += w32Buffer->pitch;
 	}
 #endif
 	//? Multithreaded, but single core is slower cause of division and modulo
@@ -48,8 +47,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 {
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC DeviceContext = GetDC(window);
-	Win32::ScreenBuffer screenbuffer= {};
-	Win32::CreateScreenBuffer(&screenbuffer, 1920, 1080);
+	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1920, 1080);
 
 	//? For multithreading with omp
 	// #pragma omp parallel for
@@ -80,10 +78,10 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 
 
 //============================================RENDERING==============================================================================================================
-		testRender(screenbuffer, XOffset, YOffset);
+		testRender(&Win32::internalBuffer, XOffset, YOffset);
 
 		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
-		Win32::UpdateWindow(DeviceContext, dims.width, dims.height, screenbuffer);
+		Win32::UpdateWindow(DeviceContext, dims.width, dims.height, &Win32::internalBuffer);
 		
 		++XOffset;
 		YOffset += 2;
