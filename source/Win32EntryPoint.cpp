@@ -55,12 +55,12 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	// {
 	// }
 
-	//Main Program Loop
 	bool isRunning = true;
 
 	s32 XOffset = 0;
 	s32 YOffset = 0;
 
+	// Main Win32 platform loop
 	while(isRunning)
 	{
 		MSG msg = {};

@@ -1,6 +1,8 @@
 #pragma once
 #include "Win32WindowsFiles.h"
 
+// Win32 Platform layer implementations, intended to be used with WINAPI WinMain only!
+//! DO NOT INCLUDE IT ENYWHERE ELSE THAN IN WIN32 ENTRY POINT COMPILATION UNIT FILE!
 namespace Win32
 {
 	struct ScreenBuffer
@@ -34,7 +36,6 @@ namespace Win32
 		}
 		buffer->width = w;
 		buffer->height = h;
-		const s32 pixelSize = 4;
 		// Set header info for bitmap
 		buffer->info.bmiHeader.biSize = sizeof(buffer->info.bmiHeader);
 		buffer->info.bmiHeader.biWidth = w;
@@ -46,12 +47,11 @@ namespace Win32
 		buffer->pitch = AlignAddress16(buffer->width*bytesPerPixel);
 		u32 bitmapMemorySize = buffer->pitch*buffer->height;
 		buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-
-		buffer->pitch = w*pixelSize;
 	}
 
-	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layers wants to update
-	void UpdateWindow(HDC deviceCtx, s32 width, s32 height, ScreenBuffer* buffer)
+	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layer wants to update
+	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
+	void UpdateWindow(HDC deviceCtx, const s32 width, const s32 height, ScreenBuffer* buffer)
 	{
 		// BitBlt might be faster
 		StretchDIBits(
@@ -62,6 +62,7 @@ namespace Win32
 			DIB_RGB_COLORS, SRCCOPY);
 	}
 
+	// Used for getting dimensions of client area for passed window
 	WindowDimensions GetWindowClientDimensions(HWND window)
 	{
 		WindowDimensions out;
@@ -129,7 +130,7 @@ namespace Win32
 		windowClass.hInstance = instance;
 		//windowClass.hIcon = LoadIcon(instance, "IDI_WINLOGO");
 		windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
-		windowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 6);
+		windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 6);
 		windowClass.lpszClassName = name;
 		//windowClass.hIconSm = LoadIcon(windowClass.hInstance, "IDI_ICON");
 
