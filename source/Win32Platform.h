@@ -88,27 +88,24 @@ namespace Win32
 			case WM_INPUT:
 			{
 				u32 size;
-				// TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
+				//TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
 				constexpr u32 guessSize = 64;
 				u8 data[guessSize];
 				RAWINPUT *raw = reinterpret_cast<RAWINPUT*>(data);
 
 				// Cold call to get required size of the input data
-				if( GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam),
-					RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER)) == -1 )
-				{
-					break;
-				}
-				// TODO: Remove it after proper memory handling for input data
+				GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam);
+				
+				//TODO: Remove it after proper memory handling for input data
 				if (size > guessSize )
 				{
-					MessageBoxA(NULL, "Too small data!", "error", 0);
+					MessageBoxA(NULL, "Too small raw input data guessed!", "error", 0);
 					break;
 				}
 				if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) ) != size )
 				{
-					// TODO: Fail handling from GetRawInputData()
-					MessageBoxA(NULL, "Incorrect data size!", "error", 0);
+					//TODO: Fail handling from GetRawInputData()
+					MessageBoxA(NULL, "Incorrect raw input data size!", "error", 0);
 					break;
 				}
 				if (raw->header.dwType == RIM_TYPEMOUSE)
@@ -209,6 +206,8 @@ namespace Win32
 
 	//===============================================XINPUT IMPLEMENTATIONS========================================================
 
+	// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
+
 	// XInputGetState defines -- "define/typedef trick" from handmadehero :)
 	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 	typedef X_INPUT_GET_STATE(X_Input_Get_State);
@@ -256,7 +255,7 @@ namespace Win32
 
 		if(RegisterRawInputDevices(rawDevices, 1, sizeof(rawDevices[0]) ) == FALSE)
 		{
-			// TODO: Proper handling in case of failure to register mouse and/or keyboard
+			//TODO: Proper handling in case of failure to register mouse and/or keyboard
 			MessageBoxA(NULL, "Could not register mouse and/or keyboard for raw input", "error", 0);
 			assert(0);
 		}

@@ -45,12 +45,15 @@ void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 off
 
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+	//?	Consider "inline style" (would be great to have named, capture scopes) as discussed by John Carmack here:
+	//?	http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html
+	
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1920, 1080);
 	Win32::LoadXInputLibrary();
 	Win32::RegisterMouseForRawInput();
-	
+
 	bool isRunning = true;
 	s32 XOffset = 0;
 	s32 YOffset = 0;
