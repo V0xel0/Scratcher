@@ -23,10 +23,24 @@ namespace Win32
 		s32 height;
 	};
 
+	struct MouseDataRaw
+	{
+		s32 x;
+		s32 y;
+		s32 lastDx;
+		s32 lastDy;
+	};
+
+//====================================INTERNAL GLOBALS===============================================================================
+	
+	global_variable MouseDataRaw mouseData;
+
 	// One 4 bytes per pixel buffer with one not shared device context is assumed, so for API simplicity, 
 	// those two are internal globals and they are never exposed to application layer directly
 	constexpr global_variable s32 bytesPerPixel = 4;
 	global_variable ScreenBuffer internalBuffer = {};
+
+//=================================================================================================================================
 
 	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
 	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
@@ -85,16 +99,17 @@ namespace Win32
 
 		switch (message)
 		{
+			// Used for obtaining relative mouse movement without acceleration
 			case WM_INPUT:
 			{
-				u32 size;
+				u32 size = {};
 				//TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
 				constexpr u32 guessSize = 64;
 				u8 data[guessSize];
 				RAWINPUT *raw = reinterpret_cast<RAWINPUT*>(data);
 
 				// Cold call to get required size of the input data
-				GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam);
+				GetRawInputData( (HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) );
 				
 				//TODO: Remove it after proper memory handling for input data
 				if (size > guessSize )
@@ -102,37 +117,62 @@ namespace Win32
 					MessageBoxA(NULL, "Too small raw input data guessed!", "error", 0);
 					break;
 				}
-				if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) ) != size )
+				u32 copied = GetRawInputData( (HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) );
+				if (copied != size)
 				{
 					//TODO: Fail handling from GetRawInputData()
 					MessageBoxA(NULL, "Incorrect raw input data size!", "error", 0);
 					break;
 				}
-				if (raw->header.dwType == RIM_TYPEMOUSE)
+				// Only care about mouse delta
+				if (raw->header.dwType == RIM_TYPEMOUSE && 
+					(raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0) )
 				{
-					raw->data.mouse.usFlags, 
-					raw->data.mouse.ulButtons, 
-					raw->data.mouse.usButtonFlags, 
-					raw->data.mouse.usButtonData, 
-					raw->data.mouse.ulRawButtons, 
-					raw->data.mouse.lLastX, 
-					raw->data.mouse.lLastY, 
-					raw->data.mouse.ulExtraInformation;
+					mouseData.lastDx = raw->data.mouse.lLastX;
+					mouseData.lastDy = raw->data.mouse.lLastY;
 				}
 			}
 			break;
 
-			case WM_DESTROY:
+			// Only used to get x,y coordinates of cursor in client area of the window
+			case WM_MOUSEMOVE:
 			{
-				OutputDebugStringA("Window Destroyed\n");
-				PostQuitMessage(0);
+				mouseData.x = LOWORD(lParam);
+				mouseData.y = HIWORD(lParam);
 			}
 			break;
 
+			// LMB RMB MMB down message
+			case WM_LBUTTONDOWN:
+			case WM_MBUTTONDOWN:
+			case WM_RBUTTONDOWN:
+			{
+
+			}
+			break;
+
+			// LMB RMB MMB up message
+			case WM_LBUTTONUP:
+			case WM_MBUTTONUP:
+			case WM_RBUTTONUP:
+			{
+
+			}
+			break;
+
+			// LMB RMB MMB double click message
+			case WM_LBUTTONDBLCLK:
+			case WM_MBUTTONDBLCLK:
+			case WM_RBUTTONDBLCLK:
+			{
+
+			}
+			break;
+
+			// Used to repaint area and update it when windows send this message
 			case WM_PAINT:
 			{
-				// When WM_PAINT from windows occur, we get the area to repaint and update it
-				PAINTSTRUCT Paint;
+				PAINTSTRUCT Paint = {};
 				HDC deviceCtx = BeginPaint(window, &Paint);
 				Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
 				EndPaint(window, &Paint);
@@ -142,6 +182,13 @@ namespace Win32
 			case WM_MENUCHAR:
 			{
 				result = MAKELRESULT(0, MNC_CLOSE);
+			}
+			break;
+
+			case WM_DESTROY:
+			{
+				OutputDebugStringA("Window Destroyed\n");
+				PostQuitMessage(0);
 			}
 			break;
 

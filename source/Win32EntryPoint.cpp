@@ -1,7 +1,7 @@
 #include "types.h"
 #include "Win32Platform.h"
 #include <omp.h>
-
+#include <cmath>
 
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 offsetY)
@@ -107,6 +107,11 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 				// Controller is not connected
 			}
 		}
+
+		XOffset += Win32::mouseData.lastDx;
+		YOffset += Win32::mouseData.lastDy;
+		Win32::mouseData.lastDx = 0;
+		Win32::mouseData.lastDy = 0;
 
 		//============================================RENDERING===================================================================
 		testRender(&Win32::internalBuffer, XOffset, YOffset);
