@@ -43,14 +43,14 @@ void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 off
 #endif
 }
 
-
 int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1920, 1080);
 	Win32::LoadXInputLibrary();
-
+	Win32::RegisterMouseForRawInput();
+	
 	bool isRunning = true;
 	s32 XOffset = 0;
 	s32 YOffset = 0;
@@ -70,7 +70,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			}
 		}
 
-		//=============================================XINPUT==============================================================================================================
+		//=============================================XINPUT============================================================
 		//TODO: Handle deadzone
 		for (DWORD gamePadID = 0; gamePadID < XUSER_MAX_COUNT; gamePadID++)
 		{
@@ -105,7 +105,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 			}
 		}
 
-		//============================================RENDERING==============================================================================================================
+		//============================================RENDERING===================================================================
 		testRender(&Win32::internalBuffer, XOffset, YOffset);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 		

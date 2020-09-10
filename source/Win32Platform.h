@@ -67,6 +67,7 @@ namespace Win32
 	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
 	internal void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer *buffer)
 	{
+		assert(buffer != nullptr);
 		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
 		// BitBlt might be faster
 		StretchDIBits(
@@ -84,6 +85,46 @@ namespace Win32
 
 		switch (message)
 		{
+			case WM_INPUT:
+			{
+				u32 size;
+				// TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
+				constexpr u32 guessSize = 64;
+				u8 data[guessSize];
+				RAWINPUT *raw = reinterpret_cast<RAWINPUT*>(data);
+
+				// Cold call to get required size of the input data
+				if( GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam),
+					RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER)) == -1 )
+				{
+					break;
+				}
+				// TODO: Remove it after proper memory handling for input data
+				if (size > guessSize )
+				{
+					MessageBoxA(NULL, "Too small data!", "error", 0);
+					break;
+				}
+				if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) ) != size )
+				{
+					// TODO: Fail handling from GetRawInputData()
+					MessageBoxA(NULL, "Incorrect data size!", "error", 0);
+					break;
+				}
+				if (raw->header.dwType == RIM_TYPEMOUSE)
+				{
+					raw->data.mouse.usFlags, 
+					raw->data.mouse.ulButtons, 
+					raw->data.mouse.usButtonFlags, 
+					raw->data.mouse.usButtonData, 
+					raw->data.mouse.ulRawButtons, 
+					raw->data.mouse.lLastX, 
+					raw->data.mouse.lLastY, 
+					raw->data.mouse.ulExtraInformation;
+				}
+			}
+			break;
+
 			case WM_DESTROY:
 			{
 				OutputDebugStringA("Window Destroyed\n");
@@ -166,7 +207,7 @@ namespace Win32
 		return mainWindow;
 	}
 
-	//===============================================XINPUT IMPLEMENTATIONS===================================================================================================
+	//===============================================XINPUT IMPLEMENTATIONS========================================================
 
 	// XInputGetState defines -- "define/typedef trick" from handmadehero :)
 	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
@@ -199,6 +240,25 @@ namespace Win32
 
 			XInputSetState = (X_Input_Set_State *)GetProcAddress(xInputLib, "XInputSetState");
 			if(!XInputSetState) {XInputSetState = XInputSetStateNotFound;}
+		}
+	}
+
+	//=============================================MOUSE RAW INPUT===========================================================
+	
+	internal void RegisterMouseForRawInput(HWND window = nullptr)
+	{
+		RAWINPUTDEVICE rawDevices[1];
+		// Mouse registering info, ignoring legacy messages
+		rawDevices[0].usUsagePage = 0x01;
+		rawDevices[0].usUsage = 0x02;
+		rawDevices[0].dwFlags = 0;
+		rawDevices[0].hwndTarget = window;
+
+		if(RegisterRawInputDevices(rawDevices, 1, sizeof(rawDevices[0]) ) == FALSE)
+		{
+			// TODO: Proper handling in case of failure to register mouse and/or keyboard
+			MessageBoxA(NULL, "Could not register mouse and/or keyboard for raw input", "error", 0);
+			assert(0);
 		}
 	}
 }
