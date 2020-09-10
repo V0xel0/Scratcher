@@ -1,7 +1,6 @@
 #include "types.h"
 #include "Win32Platform.h"
 #include <omp.h>
-#include <cmath>
 
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 offsetY)
@@ -18,7 +17,7 @@ void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 off
 		{
 			u8 b = (u8)(x + offsetX);
 			u8 g = (u8)(y + offsetY);
-			u8 r = 255;
+			u8 r = (u8)Win32::mouseData.x;
 
 			*pixel++ = ((r << 16) | (g << 8) | b);
 		}
@@ -62,7 +61,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	while(isRunning)
 	{
 		MSG msg = {};
-		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);

@@ -104,7 +104,7 @@ namespace Win32
 			{
 				u32 size = {};
 				//TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
-				constexpr u32 guessSize = 64;
+				constexpr u32 guessSize = 48; // seems like this is size for mouse
 				u8 data[guessSize];
 				RAWINPUT *raw = reinterpret_cast<RAWINPUT*>(data);
 
@@ -142,7 +142,7 @@ namespace Win32
 			}
 			break;
 
-			// LMB RMB MMB down message
+			// LMB RMB MMB down messages
 			case WM_LBUTTONDOWN:
 			case WM_MBUTTONDOWN:
 			case WM_RBUTTONDOWN:
@@ -151,7 +151,7 @@ namespace Win32
 			}
 			break;
 
-			// LMB RMB MMB up message
+			// LMB RMB MMB up messages
 			case WM_LBUTTONUP:
 			case WM_MBUTTONUP:
 			case WM_RBUTTONUP:
@@ -160,12 +160,84 @@ namespace Win32
 			}
 			break;
 
-			// LMB RMB MMB double click message
+			// LMB RMB MMB double click messages
 			case WM_LBUTTONDBLCLK:
 			case WM_MBUTTONDBLCLK:
 			case WM_RBUTTONDBLCLK:
 			{
 
+			}
+			break;
+
+			// Keyboard input messages
+			case WM_SYSKEYDOWN:
+			case WM_SYSKEYUP:
+			case WM_KEYDOWN:
+			case WM_KEYUP:
+			{
+				WPARAM vkCode = wParam;
+				bool wasDown = ((lParam & (1 << 30)) != 0);
+            	bool isDown = ((lParam & (1 << 31)) == 0);
+
+				if (isDown != wasDown)
+				{
+					if (vkCode == 'W')
+					{
+
+					}
+					else if (vkCode == 'S')
+					{
+
+					}
+					else if (vkCode == 'A')
+					{
+
+					}
+					else if (vkCode == 'D')
+					{
+
+					}
+					else if (vkCode == 'Q')
+					{
+
+					}
+					else if (vkCode == 'E')
+					{
+
+					}
+					else if (vkCode == 'Z')
+					{
+
+					}
+					else if (vkCode == 'X')
+					{
+
+					}
+					else if (vkCode == VK_ESCAPE)
+					{
+
+					}
+					else if (vkCode == VK_SPACE)
+					{
+
+					}
+					else if (vkCode == VK_UP)
+					{
+
+					}
+					else if (vkCode == VK_DOWN)
+					{
+
+					}
+					else if (vkCode == VK_LEFT)
+					{
+
+					}
+					else if (vkCode == VK_RIGHT)
+					{
+
+					}	
+				}
 			}
 			break;
 
@@ -208,7 +280,7 @@ namespace Win32
 		HINSTANCE instance = nullptr;
 		HWND mainWindow = nullptr;
 
-		instance = GetModuleHandle(nullptr);
+		instance = GetModuleHandleA(nullptr);
 		WNDCLASSEXA windowClass = {};
 
 		windowClass.cbSize = sizeof(WNDCLASSEXA);
@@ -255,7 +327,7 @@ namespace Win32
 
 	// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
 
-	// XInputGetState defines -- "define/typedef trick" from handmadehero :)
+	// XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
 	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 	typedef X_INPUT_GET_STATE(X_Input_Get_State);
 	X_INPUT_GET_STATE(XInputGetStateNotFound)
