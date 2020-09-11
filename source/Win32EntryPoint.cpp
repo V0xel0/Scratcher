@@ -28,15 +28,15 @@ void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 off
 #if 0
 	omp_set_num_threads(12);
 	#pragma omp parallel for
-	for (int xy = 0; xy < bitmapWidth*bitmapHeight; ++xy) 
+	for (int xy = 0; xy < width*height; ++xy) 
 	{
-		s32 x = xy % bitmapWidth;
-		s32 y = xy / bitmapWidth;
+		s32 x = xy % width;
+		s32 y = xy / width;
 		
 		u32 *pixel = ( (u32*)row ) + xy;
 		u8 b = (u8)(x + offsetX);
 		u8 g = (u8)(y + offsetY);
-		u8 r = 255;
+		u8 r = (u8)Win32::mouseData.x;
 		*pixel = ((r << 16) |(g << 8) | b);
 	}
 #endif
@@ -57,6 +57,8 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 	s32 XOffset = 0;
 	s32 YOffset = 0;
 
+	//===========================================XAUDIO2========================================================================
+
 	// Main Win32 platform loop
 	while(isRunning)
 	{
@@ -71,7 +73,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 				break;
 			}
 		}
-
+#if 0
 		//=============================================XINPUT============================================================
 		//TODO: Handle deadzone
 		for (DWORD gamePadID = 0; gamePadID < XUSER_MAX_COUNT; gamePadID++)
@@ -106,7 +108,7 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 				// Controller is not connected
 			}
 		}
-
+#endif
 		XOffset += Win32::mouseData.lastDx;
 		YOffset += Win32::mouseData.lastDy;
 		Win32::mouseData.lastDx = 0;
@@ -116,8 +118,8 @@ int WINAPI WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLin
 		testRender(&Win32::internalBuffer, XOffset, YOffset);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 		
-		//++XOffset;
-		//YOffset += 2;
+		++XOffset;
+		YOffset += 2;
 	}
 	UnregisterClassA("Scratcher", GetModuleHandleA(nullptr)); // ? Do we need that?
 }

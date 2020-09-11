@@ -32,11 +32,11 @@ namespace Win32
 	};
 
 //====================================INTERNAL GLOBALS===============================================================================
+	// Internal globals are never exposed to application layer directly, they are mostly data that 
+	// needs to be shared with window CALLBACK function in Windows
 	
 	global_variable MouseDataRaw mouseData;
-
-	// One 4 bytes per pixel buffer with one not shared device context is assumed, so for API simplicity, 
-	// those two are internal globals and they are never exposed to application layer directly
+	// One 4 bytes per pixel buffer with one not shared device context is assumed
 	constexpr global_variable s32 bytesPerPixel = 4;
 	global_variable ScreenBuffer internalBuffer = {};
 
@@ -332,7 +332,7 @@ namespace Win32
 	typedef X_INPUT_GET_STATE(X_Input_Get_State);
 	X_INPUT_GET_STATE(XInputGetStateNotFound)
 	{
-		return 0;
+		return ERROR_DEVICE_NOT_CONNECTED;
 	}
 	global_variable X_Input_Get_State *xInputGetStatePtr = XInputGetStateNotFound;
 	#define XInputGetState xInputGetStatePtr
@@ -342,7 +342,7 @@ namespace Win32
 	typedef X_INPUT_SET_STATE(X_Input_Set_State);
 	X_INPUT_SET_STATE(XInputSetStateNotFound)
 	{
-		return 0;
+		return ERROR_DEVICE_NOT_CONNECTED;
 	}
 	global_variable X_Input_Set_State *xInputSetStatePtr = XInputSetStateNotFound;
 	#define XInputSetState xInputSetStatePtr
