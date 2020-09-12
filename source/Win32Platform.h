@@ -3,7 +3,7 @@
 #include <Xinput.h>
 
 // Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
-// In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is 
+// In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is
 // provided for all custom platform layer functions and structures
 //! DO NOT INCLUDE IT ENYWHERE ELSE THAN IN WIN32 ENTRY POINT COMPILATION UNIT FILE!
 namespace Win32
@@ -31,23 +31,25 @@ namespace Win32
 		s32 lastDy;
 	};
 
-//====================================INTERNAL GLOBALS===============================================================================
-	// Internal globals are never exposed to application layer directly, they are mostly data that 
+	//====================================INTERNAL GLOBALS===============================================================================
+	// Internal globals are never exposed to application layer directly, they are mostly data that
 	// needs to be shared with window CALLBACK function in Windows
-	
+
 	global_variable MouseDataRaw mouseData;
+	global_variable LARGE_INTEGER clockFrequency;
+
 	// One 4 bytes per pixel buffer with one not shared device context is assumed
 	constexpr global_variable s32 bytesPerPixel = 4;
 	global_variable ScreenBuffer internalBuffer = {};
 
-//=================================================================================================================================
+	//=================================================================================================================================
 
 	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
 	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
 	internal void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
 	{
 		assert(buffer != nullptr);
-		if(buffer->memory)
+		if (buffer->memory)
 		{
 			VirtualFree(buffer->memory, 0, MEM_RELEASE);
 		}
@@ -61,8 +63,8 @@ namespace Win32
 		buffer->info.bmiHeader.biBitCount = 32;
 		buffer->info.bmiHeader.biCompression = BI_RGB;
 
-		buffer->pitch = AlignAddress16(buffer->width*bytesPerPixel);
-		u32 bitmapMemorySize = buffer->pitch*buffer->height;
+		buffer->pitch = AlignAddress16(buffer->width * bytesPerPixel);
+		u32 bitmapMemorySize = buffer->pitch * buffer->height;
 		buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	}
 
@@ -85,10 +87,10 @@ namespace Win32
 		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
 		// BitBlt might be faster
 		StretchDIBits(
-			deviceCtx, 
-			0,0,dims.width,dims.height,
-			0,0,buffer->width,buffer->height, 
-			buffer->memory, &buffer->info, 
+			deviceCtx,
+			0, 0, dims.width, dims.height,
+			0, 0, buffer->width, buffer->height,
+			buffer->memory, &buffer->info,
 			DIB_RGB_COLORS, SRCCOPY);
 	}
 
@@ -99,176 +101,159 @@ namespace Win32
 
 		switch (message)
 		{
-			// Used for obtaining relative mouse movement without acceleration
-			case WM_INPUT:
-			{
-				u32 size = {};
-				//TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
-				constexpr u32 guessSize = 48; // seems like this is size for mouse
-				u8 data[guessSize];
-				RAWINPUT *raw = reinterpret_cast<RAWINPUT*>(data);
+		// Used for obtaining relative mouse movement without acceleration
+		case WM_INPUT:
+		{
+			u32 size = {};
+			//TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
+			constexpr u32 guessSize = 48; // seems like this is size for mouse
+			u8 data[guessSize];
+			RAWINPUT *raw = reinterpret_cast<RAWINPUT *>(data);
 
-				// Cold call to get required size of the input data
-				GetRawInputData( (HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) );
-				
-				//TODO: Remove it after proper memory handling for input data
-				if (size > guessSize )
+			// Cold call to get required size of the input data
+			GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER));
+
+			//TODO: Remove it after proper memory handling for input data
+			if (size > guessSize)
+			{
+				MessageBoxA(NULL, "Too small raw input data guessed!", "error", 0);
+				break;
+			}
+			u32 copied = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER));
+			if (copied != size)
+			{
+				//TODO: Fail handling from GetRawInputData()
+				MessageBoxA(NULL, "Incorrect raw input data size!", "error", 0);
+				break;
+			}
+			// Only care about mouse delta
+			if (raw->header.dwType == RIM_TYPEMOUSE &&
+				(raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0))
+			{
+				mouseData.lastDx = raw->data.mouse.lLastX;
+				mouseData.lastDy = raw->data.mouse.lLastY;
+			}
+		}
+		break;
+
+		// Only used to get x,y coordinates of cursor in client area of the window
+		case WM_MOUSEMOVE:
+		{
+			mouseData.x = LOWORD(lParam);
+			mouseData.y = HIWORD(lParam);
+		}
+		break;
+
+		// LMB RMB MMB down messages
+		case WM_LBUTTONDOWN:
+		case WM_MBUTTONDOWN:
+		case WM_RBUTTONDOWN:
+		{
+		}
+		break;
+
+		// LMB RMB MMB up messages
+		case WM_LBUTTONUP:
+		case WM_MBUTTONUP:
+		case WM_RBUTTONUP:
+		{
+		}
+		break;
+
+		// LMB RMB MMB double click messages
+		case WM_LBUTTONDBLCLK:
+		case WM_MBUTTONDBLCLK:
+		case WM_RBUTTONDBLCLK:
+		{
+		}
+		break;
+
+		// Keyboard input messages
+		case WM_SYSKEYDOWN:
+		case WM_SYSKEYUP:
+		case WM_KEYDOWN:
+		case WM_KEYUP:
+		{
+			WPARAM vkCode = wParam;
+			b32 wasDown = TestBit(lParam, 30) != 0;
+			b32 isDown = TestBit(lParam, 31) == 0;
+
+			if (isDown != wasDown)
+			{
+				if (vkCode == 'W')
 				{
-					MessageBoxA(NULL, "Too small raw input data guessed!", "error", 0);
-					break;
 				}
-				u32 copied = GetRawInputData( (HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER) );
-				if (copied != size)
+				else if (vkCode == 'S')
 				{
-					//TODO: Fail handling from GetRawInputData()
-					MessageBoxA(NULL, "Incorrect raw input data size!", "error", 0);
-					break;
 				}
-				// Only care about mouse delta
-				if (raw->header.dwType == RIM_TYPEMOUSE && 
-					(raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0) )
+				else if (vkCode == 'A')
 				{
-					mouseData.lastDx = raw->data.mouse.lLastX;
-					mouseData.lastDy = raw->data.mouse.lLastY;
 				}
-			}
-			break;
-
-			// Only used to get x,y coordinates of cursor in client area of the window
-			case WM_MOUSEMOVE:
-			{
-				mouseData.x = LOWORD(lParam);
-				mouseData.y = HIWORD(lParam);
-			}
-			break;
-
-			// LMB RMB MMB down messages
-			case WM_LBUTTONDOWN:
-			case WM_MBUTTONDOWN:
-			case WM_RBUTTONDOWN:
-			{
-
-			}
-			break;
-
-			// LMB RMB MMB up messages
-			case WM_LBUTTONUP:
-			case WM_MBUTTONUP:
-			case WM_RBUTTONUP:
-			{
-
-			}
-			break;
-
-			// LMB RMB MMB double click messages
-			case WM_LBUTTONDBLCLK:
-			case WM_MBUTTONDBLCLK:
-			case WM_RBUTTONDBLCLK:
-			{
-
-			}
-			break;
-
-			// Keyboard input messages
-			case WM_SYSKEYDOWN:
-			case WM_SYSKEYUP:
-			case WM_KEYDOWN:
-			case WM_KEYUP:
-			{
-				WPARAM vkCode = wParam;
-				bool wasDown = ((lParam & (1 << 30)) != 0);
-            	bool isDown = ((lParam & (1 << 31)) == 0);
-
-				if (isDown != wasDown)
+				else if (vkCode == 'D')
 				{
-					if (vkCode == 'W')
-					{
-
-					}
-					else if (vkCode == 'S')
-					{
-
-					}
-					else if (vkCode == 'A')
-					{
-
-					}
-					else if (vkCode == 'D')
-					{
-
-					}
-					else if (vkCode == 'Q')
-					{
-
-					}
-					else if (vkCode == 'E')
-					{
-
-					}
-					else if (vkCode == 'Z')
-					{
-
-					}
-					else if (vkCode == 'X')
-					{
-
-					}
-					else if (vkCode == VK_ESCAPE)
-					{
-
-					}
-					else if (vkCode == VK_SPACE)
-					{
-
-					}
-					else if (vkCode == VK_UP)
-					{
-
-					}
-					else if (vkCode == VK_DOWN)
-					{
-
-					}
-					else if (vkCode == VK_LEFT)
-					{
-
-					}
-					else if (vkCode == VK_RIGHT)
-					{
-
-					}	
+				}
+				else if (vkCode == 'Q')
+				{
+				}
+				else if (vkCode == 'E')
+				{
+				}
+				else if (vkCode == 'Z')
+				{
+				}
+				else if (vkCode == 'X')
+				{
+				}
+				else if (vkCode == VK_ESCAPE)
+				{
+				}
+				else if (vkCode == VK_SPACE)
+				{
+				}
+				else if (vkCode == VK_UP)
+				{
+				}
+				else if (vkCode == VK_DOWN)
+				{
+				}
+				else if (vkCode == VK_LEFT)
+				{
+				}
+				else if (vkCode == VK_RIGHT)
+				{
 				}
 			}
-			break;
+		}
+		break;
 
-			// Used to repaint area and update it when windows send this message
-			case WM_PAINT:
-			{
-				PAINTSTRUCT Paint = {};
-				HDC deviceCtx = BeginPaint(window, &Paint);
-				Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
-				EndPaint(window, &Paint);
-			}
-			break;
+		// Used to repaint area and update it when windows send this message
+		case WM_PAINT:
+		{
+			PAINTSTRUCT Paint = {};
+			HDC deviceCtx = BeginPaint(window, &Paint);
+			Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
+			EndPaint(window, &Paint);
+		}
+		break;
 
-			case WM_MENUCHAR:
-			{
-				result = MAKELRESULT(0, MNC_CLOSE);
-			}
-			break;
+		case WM_MENUCHAR:
+		{
+			result = MAKELRESULT(0, MNC_CLOSE);
+		}
+		break;
 
-			case WM_DESTROY:
-			{
-				OutputDebugStringA("Window Destroyed\n");
-				PostQuitMessage(0);
-			}
-			break;
+		case WM_DESTROY:
+		{
+			OutputDebugStringA("Window Destroyed\n");
+			PostQuitMessage(0);
+		}
+		break;
 
-			default:
-			{
-				result = DefWindowProc(window, message, wParam, lParam);
-			}
-			break;
+		default:
+		{
+			result = DefWindowProc(window, message, wParam, lParam);
+		}
+		break;
 		}
 
 		return (result);
@@ -294,9 +279,9 @@ namespace Win32
 		//windowClass.hIconSm = LoadIcon(windowClass.hInstance, "IDI_ICON");
 
 		const s32 error = RegisterClassExA(&windowClass);
-		assert( error != 0 && "Class registration failed");
+		assert(error != 0 && "Class registration failed");
 
-		RECT rc = { 0, 0, static_cast<LONG>(w), static_cast<LONG>(h) };
+		RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
 		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
 		const int winStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_OVERLAPPED | WS_SYSMENU;
 
@@ -323,46 +308,52 @@ namespace Win32
 		return mainWindow;
 	}
 
-	//===============================================XINPUT IMPLEMENTATIONS========================================================
+//===============================================XINPUT IMPLEMENTATIONS========================================================
 
-	// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
+// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
 
-	// XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
-	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
+// XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
+#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 	typedef X_INPUT_GET_STATE(X_Input_Get_State);
 	X_INPUT_GET_STATE(XInputGetStateNotFound)
 	{
 		return ERROR_DEVICE_NOT_CONNECTED;
 	}
 	global_variable X_Input_Get_State *xInputGetStatePtr = XInputGetStateNotFound;
-	#define XInputGetState xInputGetStatePtr
+#define XInputGetState xInputGetStatePtr
 
-	// XInputSetState defines
-	#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
+// XInputSetState defines
+#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
 	typedef X_INPUT_SET_STATE(X_Input_Set_State);
 	X_INPUT_SET_STATE(XInputSetStateNotFound)
 	{
 		return ERROR_DEVICE_NOT_CONNECTED;
 	}
 	global_variable X_Input_Set_State *xInputSetStatePtr = XInputSetStateNotFound;
-	#define XInputSetState xInputSetStatePtr
+#define XInputSetState xInputSetStatePtr
 
 	// Used to load xinput dll, if not found then above function pointers will point to "...NotFound" implementation ( return 0 )
-	internal void LoadXInputLibrary()    
+	internal void LoadXInputLibrary()
 	{
 		HMODULE xInputLib = LoadLibraryA("xinput1_4.dll");
-		if(xInputLib)
+		if (xInputLib)
 		{
 			XInputGetState = (X_Input_Get_State *)GetProcAddress(xInputLib, "XInputGetState");
-			if(!XInputGetState) {XInputGetState = XInputGetStateNotFound;}
+			if (!XInputGetState)
+			{
+				XInputGetState = XInputGetStateNotFound;
+			}
 
 			XInputSetState = (X_Input_Set_State *)GetProcAddress(xInputLib, "XInputSetState");
-			if(!XInputSetState) {XInputSetState = XInputSetStateNotFound;}
+			if (!XInputSetState)
+			{
+				XInputSetState = XInputSetStateNotFound;
+			}
 		}
 	}
 
 	//=============================================MOUSE RAW INPUT===========================================================
-	
+
 	internal void RegisterMouseForRawInput(HWND window = nullptr)
 	{
 		RAWINPUTDEVICE rawDevices[1];
@@ -372,11 +363,11 @@ namespace Win32
 		rawDevices[0].dwFlags = 0;
 		rawDevices[0].hwndTarget = window;
 
-		if(RegisterRawInputDevices(rawDevices, 1, sizeof(rawDevices[0]) ) == FALSE)
+		if (RegisterRawInputDevices(rawDevices, 1, sizeof(rawDevices[0])) == FALSE)
 		{
 			//TODO: Proper handling in case of failure to register mouse and/or keyboard
 			MessageBoxA(NULL, "Could not register mouse and/or keyboard for raw input", "error", 0);
 			assert(0);
 		}
 	}
-}
+} // namespace Win32

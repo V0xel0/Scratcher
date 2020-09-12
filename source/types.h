@@ -11,9 +11,10 @@ typedef uint64_t u64;
 typedef int8_t  s8;
 typedef int16_t s16;
 typedef int32_t s32;
-typedef int32_t s64;
+typedef int64_t s64;
 
-typedef uint8_t byte;
+typedef s32 b32;
+typedef u8 byte;
 
 #define KiB(Value) ((Value)*1024LL)
 #define MiB(Value) (KiB(Value)*1024LL)
@@ -32,3 +33,5 @@ typedef uint8_t byte;
 #define AlignAddress16(Value) ((Value + 15) & ~15)
 
 #define AlignValuePow2(Value, Alignment) ((Value + ((Alignment) - 1)) & ~((Alignment))
+
+#define TestBit(El,Pos) ( (El) & ( 1<<(Pos) ) )
