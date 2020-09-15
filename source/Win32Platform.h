@@ -370,4 +370,4 @@ namespace Win32
 			assert(0);
 		}
 	}
-} // namespace Win32
+}

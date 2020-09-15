@@ -25,6 +25,8 @@ typedef u8 byte;
 #define local_persist static 
 #define global_variable static
 
+#define PI32 3.14159265359f
+
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 #define AlignAddressPow2(Value, Alignment) ((Value + ((Alignment) - 1)) & ~((Alignment) - 1))

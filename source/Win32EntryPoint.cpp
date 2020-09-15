@@ -4,45 +4,7 @@
 #include <omp.h>
 #include <cstdio>
 
-// TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
-void testRender(Win32::ScreenBuffer *w32Buffer, const s32 offsetX, const s32 offsetY)
-{
-	s32 width = w32Buffer->width;
-	s32 height = w32Buffer->height;
-
-	u8 *row = (u8 *)w32Buffer->memory;
-#if 1
-	for (s32 y = 0; y < height; y++)
-	{
-		u32 *pixel = (u32 *)row;
-		for (s32 x = 0; x < width; x++)
-		{
-			u8 b = (u8)(x + offsetX);
-			u8 g = (u8)(y + offsetY);
-			u8 r = (u8)Win32::mouseData.x;
-
-			*pixel++ = ((r << 16) | (g << 8) | b);
-		}
-		row += w32Buffer->pitch;
-	}
-#endif
-	//? Multithreaded, but single core is slower cause of division and modulo
-#if 0
-	omp_set_num_threads(12);
-#pragma omp parallel for
-	for (int xy = 0; xy < width*height; ++xy) 
-	{
-		s32 x = xy % width;
-		s32 y = xy / width;
-		
-		u32 *pixel = ( (u32*)row ) + xy;
-		u8 b = (u8)(x + offsetX);
-		u8 g = (u8)(y + offsetY);
-		u8 r = (u8)Win32::mouseData.x;
-		*pixel = ((r << 16) |(g << 8) | b);
-	}
-#endif
-}
+#include "GameServices.h"
 
 inline internal s64 ElapsedMsHere(s64 startPoint)
 {
@@ -75,6 +37,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// Timer variables
 	LARGE_INTEGER startTime{};
 	u64 cycleStart = 0, cycleEnd = 0;
+
+	GameScreenBuffer gameBuffer = {};
+	gameBuffer.height =  Win32::internalBuffer.height;
+	gameBuffer.width  =  Win32::internalBuffer.width;
+	gameBuffer.pitch  =  Win32::internalBuffer.pitch;
+	gameBuffer.memory =  Win32::internalBuffer.memory;
 	
 	// Main Win32 platform loop
 	while (isRunning)
@@ -82,6 +50,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		QueryPerformanceCounter(&startTime);
 		cycleStart = __rdtsc();
 		
+		// Windows message dispatching loop
 		MSG msg = {};
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
@@ -134,17 +103,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		Win32::mouseData.lastDx = 0;
 		Win32::mouseData.lastDy = 0;
 
-		//============================================RENDERING=============================
-		testRender(&Win32::internalBuffer, XOffset, YOffset);
+		// Update
+		GameFullUpdate(&gameBuffer, XOffset, YOffset);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
 		++XOffset;
 		YOffset += 2;
 
+		// Timers
 		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);
 		cycleEnd = __rdtsc();
 		u64 mcpf = (cycleStart-cycleEnd) / (1'000'000);
 
+		// Temporary for debug
 		char buffer[32];
 		sprintf(buffer, "Ms: %lld\n", frameTimeMs);
 		OutputDebugStringA(buffer);
