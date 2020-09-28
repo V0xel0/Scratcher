@@ -4,9 +4,11 @@
 #include <omp.h>
 #include <cstdio>
 
-// Unity Build
 #include "GameServices.h"
+
+#if UNITY_BUILD
 #include "GameServices.cpp"
+#endif
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
 inline internal s64 ElapsedMsHere(s64 startPoint)
