@@ -8,6 +8,6 @@ IF NOT EXIST .\build mkdir .\build
 pushd .\build
 del *.pdb > NUL 2> NUL
 
-cl.exe %compilerFlags% ../source/*.cpp /link %linkerFlags% && .\scratcher.exe
+cl.exe %compilerFlags% ../source/Win32EntryPoint.cpp /link %linkerFlags% && .\scratcher.exe
 
 popd

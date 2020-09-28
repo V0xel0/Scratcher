@@ -1,11 +1,14 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include "types.h"
+#include "Utils.h"
 #include "Win32Platform.h"
 #include <omp.h>
 #include <cstdio>
 
+// Unity Build
 #include "GameServices.h"
+#include "GameServices.cpp"
 
+//TODO: Later consider grouping all timestamps and process them in aggregate
 inline internal s64 ElapsedMsHere(s64 startPoint)
 {
 	LARGE_INTEGER hereEnd = {};

@@ -357,7 +357,7 @@ namespace Win32
 	internal void RegisterMouseForRawInput(HWND window = nullptr)
 	{
 		RAWINPUTDEVICE rawDevices[1];
-		// Mouse registering info, ignoring legacy messages
+		// Mouse registering info
 		rawDevices[0].usUsagePage = 0x01;
 		rawDevices[0].usUsage = 0x02;
 		rawDevices[0].dwFlags = 0;
