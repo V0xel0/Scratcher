@@ -1,20 +1,21 @@
 #pragma once
-#include <stdint.h>
-typedef float f32;
-typedef double f64;
+#include <cstdint>
 
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+using f32 = float;
+using f64 = double;
 
-typedef int8_t  s8;
-typedef int16_t s16;
-typedef int32_t s32;
-typedef int64_t s64;
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+using u64 = uint64_t;
 
-typedef s32 b32;
-typedef u8 byte;
+using s8 = int8_t;
+using s16 = int16_t;
+using s32 = int32_t;
+using s64 = int64_t;
+
+using b32 = s32;
+using byte = u8;
 
 #define KiB(Value) ((Value)*1024LL)
 #define MiB(Value) (KiB(Value)*1024LL)
@@ -25,7 +26,8 @@ typedef u8 byte;
 #define local_persist static 
 #define global_variable static
 
-#define PI32 3.14159265359f
+const constexpr f32 PI32 =  3.14159265359f;
+const constexpr f64 PI64 =  3.14159265359;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 

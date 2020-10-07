@@ -1,14 +1,15 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include "Utils.h"
-#include "Win32Platform.h"
-#include <omp.h>
-#include <cstdio>
 
+#include "Utils.h"
 #include "GameServices.h"
 
 #if UNITY_BUILD
 #include "GameServices.cpp"
 #endif
+
+#include "Win32Platform.h"
+#include <omp.h>
+#include <cstdio>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
 inline internal s64 ElapsedMsHere(s64 startPoint)
@@ -111,7 +112,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		// Update
 		GameFullUpdate(&gameBuffer, XOffset, YOffset);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
-
+		
 		++XOffset;
 		YOffset += 2;
 
