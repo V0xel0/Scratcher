@@ -12,7 +12,7 @@
 #include <cstdio>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
-inline internal s64 ElapsedMsHere(s64 startPoint)
+inline internal s64 ElapsedMsHere(const s64 startPoint)
 {
 	LARGE_INTEGER hereEnd = {};
 	s64 elapsedMs = 0;

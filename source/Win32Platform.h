@@ -283,7 +283,7 @@ namespace Win32
 
 		RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
 		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
-		const int winStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_OVERLAPPED | WS_SYSMENU;
+		const s32 winStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_OVERLAPPED | WS_SYSMENU;
 
 		mainWindow = CreateWindowExA(
 			WS_EX_APPWINDOW,
