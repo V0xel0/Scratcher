@@ -49,7 +49,73 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	gameBuffer.width  =  Win32::internalBuffer.width;
 	gameBuffer.pitch  =  Win32::internalBuffer.pitch;
 	gameBuffer.memory =  Win32::internalBuffer.memory;
+
+	// Audio stuff
+
+	CoInitializeEx(NULL, COINIT_MULTITHREADED);
+
+	Microsoft::WRL::ComPtr<IXAudio2> XAudio2;
+	HRESULT hr;
+	hr = XAudio2Create( &XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR );
+	assert( (HRESULT) hr >= 0 );
+	IXAudio2MasteringVoice *pMasterVoice = nullptr;
+	hr = XAudio2->CreateMasteringVoice( &pMasterVoice );
+	assert( (HRESULT) hr >= 0);
+
+	WAVEFORMATEXTENSIBLE wfx = {};
+	XAUDIO2_BUFFER xaudioBuffer = {};
 	
+	WCHAR * strFileName = (L"D:\\POL-guilty-one-short.wav");
+
+	// Open the file
+	HANDLE hFile = CreateFileW(
+		strFileName,
+		GENERIC_READ,
+		FILE_SHARE_READ,
+		NULL,
+		OPEN_EXISTING,
+		0,
+		NULL );
+
+	// if( INVALID_HANDLE_VALUE == hFile )
+	// 	return HRESULT_FROM_WIN32( GetLastError() );
+
+	// if( INVALID_SET_FILE_POINTER == SetFilePointer( hFile, 0, NULL, FILE_BEGIN ) )
+	// 	return HRESULT_FROM_WIN32( GetLastError() );
+
+	DWORD dwChunkSize;
+	DWORD dwChunkPosition;
+	//check the file type, should be fourccWAVE or 'XWMA'
+	Win32::FindChunk(hFile,fourccRIFF,dwChunkSize, dwChunkPosition );
+	DWORD filetype;
+	Win32::ReadChunkData(hFile,&filetype,sizeof(DWORD),dwChunkPosition);
+	// if (filetype != fourccWAVE)
+	// 	return S_FALSE;
+
+	Win32::FindChunk(hFile,fourccFMT, dwChunkSize, dwChunkPosition );
+	Win32::ReadChunkData(hFile, &wfx, dwChunkSize, dwChunkPosition );
+
+	//fill out the audio data buffer with the contents of the fourccDATA chunk
+	Win32::FindChunk(hFile,fourccDATA,dwChunkSize, dwChunkPosition );
+	BYTE * pDataBuffer = new BYTE[dwChunkSize];
+	Win32::ReadChunkData(hFile, pDataBuffer, dwChunkSize, dwChunkPosition);
+
+	xaudioBuffer.AudioBytes = dwChunkSize;  //size of the audio buffer in bytes
+	xaudioBuffer.pAudioData = pDataBuffer;  //buffer containing audio data
+	xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
+	xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+
+	// Create Source Voice and submit buffer to it
+	IXAudio2SourceVoice* pSourceVoice;
+	hr = XAudio2->CreateSourceVoice( &pSourceVoice, (WAVEFORMATEX*)&wfx );
+	assert( (HRESULT) hr >= 0);
+	hr = pSourceVoice->SubmitSourceBuffer( &xaudioBuffer );
+    assert( (HRESULT) hr >= 0);
+
+	// Activate Source voice
+	hr = pSourceVoice->Start();
+   	assert( (HRESULT) hr >= 0);
+
 	// Main Win32 platform loop
 	while (isRunning)
 	{
@@ -122,9 +188,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		u64 mcpf = (cycleStart-cycleEnd) / (1'000'000);
 
 		// Temporary for debug
-		char buffer[32];
-		sprintf(buffer, "Ms: %lld\n", frameTimeMs);
-		OutputDebugStringA(buffer);
+		char tbuffer[32];
+		sprintf(tbuffer, "Ms: %lld\n", frameTimeMs);
+		OutputDebugStringA(tbuffer);
 	}
 	UnregisterClassA("Scratcher", GetModuleHandleA(nullptr)); // ? Do we need that?
+	CoUninitialize();
 }
