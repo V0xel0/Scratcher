@@ -1,10 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "Utils.h"
-#include "GameServices.h"
+#include "GameService.h"
 
 #if UNITY_BUILD
-#include "GameServices.cpp"
+#include "GameService.cpp"
 #endif
 
 #include "Win32Platform.h"
@@ -45,27 +45,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	u64 cycleStart = 0, cycleEnd = 0;
 
 	GameScreenBuffer gameBuffer = {};
-	gameBuffer.height =  Win32::internalBuffer.height;
-	gameBuffer.width  =  Win32::internalBuffer.width;
-	gameBuffer.pitch  =  Win32::internalBuffer.pitch;
-	gameBuffer.memory =  Win32::internalBuffer.memory;
+	gameBuffer.height = Win32::internalBuffer.height;
+	gameBuffer.width = Win32::internalBuffer.width;
+	gameBuffer.pitch = Win32::internalBuffer.pitch;
+	gameBuffer.memory = Win32::internalBuffer.memory;
 
 	// Audio stuff
 
 	CoInitializeEx(NULL, COINIT_MULTITHREADED);
 
-	Microsoft::WRL::ComPtr<IXAudio2> XAudio2;
+	ATL::CComPtr<IXAudio2> XAudio2;
 	HRESULT hr;
-	hr = XAudio2Create( &XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR );
-	assert( (HRESULT) hr >= 0 );
+	hr = XAudio2Create(&XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+	assert((HRESULT)hr >= 0);
 	IXAudio2MasteringVoice *pMasterVoice = nullptr;
-	hr = XAudio2->CreateMasteringVoice( &pMasterVoice );
-	assert( (HRESULT) hr >= 0);
+	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
+	assert((HRESULT)hr >= 0);
 
 	WAVEFORMATEXTENSIBLE wfx = {};
 	XAUDIO2_BUFFER xaudioBuffer = {};
-	
-	WCHAR * strFileName = (L"D:\\POL-guilty-one-short.wav");
+
+	WCHAR *strFileName = (L"D:\\laser_1.wav");
 
 	// Open the file
 	HANDLE hFile = CreateFileW(
@@ -75,7 +75,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		NULL,
 		OPEN_EXISTING,
 		0,
-		NULL );
+		NULL);
 
 	// if( INVALID_HANDLE_VALUE == hFile )
 	// 	return HRESULT_FROM_WIN32( GetLastError() );
@@ -86,42 +86,46 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	DWORD dwChunkSize;
 	DWORD dwChunkPosition;
 	//check the file type, should be fourccWAVE or 'XWMA'
-	Win32::FindChunk(hFile,fourccRIFF,dwChunkSize, dwChunkPosition );
+	Win32::FindChunk(hFile, fourccRIFF, dwChunkSize, dwChunkPosition);
 	DWORD filetype;
-	Win32::ReadChunkData(hFile,&filetype,sizeof(DWORD),dwChunkPosition);
+	Win32::ReadChunkData(hFile, &filetype, sizeof(DWORD), dwChunkPosition);
 	// if (filetype != fourccWAVE)
 	// 	return S_FALSE;
 
-	Win32::FindChunk(hFile,fourccFMT, dwChunkSize, dwChunkPosition );
-	Win32::ReadChunkData(hFile, &wfx, dwChunkSize, dwChunkPosition );
+	Win32::FindChunk(hFile, fourccFMT, dwChunkSize, dwChunkPosition);
+	Win32::ReadChunkData(hFile, &wfx, dwChunkSize, dwChunkPosition);
 
 	//fill out the audio data buffer with the contents of the fourccDATA chunk
-	Win32::FindChunk(hFile,fourccDATA,dwChunkSize, dwChunkPosition );
-	BYTE * pDataBuffer = new BYTE[dwChunkSize];
+	Win32::FindChunk(hFile, fourccDATA, dwChunkSize, dwChunkPosition);
+	BYTE *pDataBuffer = new BYTE[dwChunkSize];
 	Win32::ReadChunkData(hFile, pDataBuffer, dwChunkSize, dwChunkPosition);
 
-	xaudioBuffer.AudioBytes = dwChunkSize;  //size of the audio buffer in bytes
-	xaudioBuffer.pAudioData = pDataBuffer;  //buffer containing audio data
+	xaudioBuffer.AudioBytes = dwChunkSize;		//size of the audio buffer in bytes
+	xaudioBuffer.pAudioData = pDataBuffer;		//buffer containing audio data
 	xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
-	xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+	//xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 
 	// Create Source Voice and submit buffer to it
-	IXAudio2SourceVoice* pSourceVoice;
-	hr = XAudio2->CreateSourceVoice( &pSourceVoice, (WAVEFORMATEX*)&wfx );
-	assert( (HRESULT) hr >= 0);
-	hr = pSourceVoice->SubmitSourceBuffer( &xaudioBuffer );
-    assert( (HRESULT) hr >= 0);
+	IXAudio2SourceVoice *pSourceVoice;
+	hr = XAudio2->CreateSourceVoice(&pSourceVoice, (WAVEFORMATEX *)&wfx);
+	assert((HRESULT)hr >= 0);
+	hr = pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
+	assert((HRESULT)hr >= 0);
 
 	// Activate Source voice
 	hr = pSourceVoice->Start();
-   	assert( (HRESULT) hr >= 0);
+	assert((HRESULT)hr >= 0);
+
+	// other audio
+	XAUDIO2_BUFFER laser1Buffer{};
+	WAVEFORMATEXTENSIBLE laserWFX = {}; // could consider using same format for everything
 
 	// Main Win32 platform loop
 	while (isRunning)
 	{
 		QueryPerformanceCounter(&startTime);
 		cycleStart = __rdtsc();
-		
+
 		// Windows message dispatching loop
 		MSG msg = {};
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -172,20 +176,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #endif
 		XOffset += Win32::mouseData.lastDx;
 		YOffset += Win32::mouseData.lastDy;
+
 		Win32::mouseData.lastDx = 0;
 		Win32::mouseData.lastDy = 0;
 
 		// Update
 		GameFullUpdate(&gameBuffer, XOffset, YOffset);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
-		
+
 		++XOffset;
 		YOffset += 2;
 
 		// Timers
 		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);
 		cycleEnd = __rdtsc();
-		u64 mcpf = (cycleStart-cycleEnd) / (1'000'000);
+		u64 mcpf = (cycleStart - cycleEnd) / (1'000'000);
 
 		// Temporary for debug
 		char tbuffer[32];

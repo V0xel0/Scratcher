@@ -1,4 +1,5 @@
-#include "GameServices.h"
+#include "GameService.h"
+#include "Utils.h"
 
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 internal void testRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
@@ -38,6 +39,10 @@ internal void testRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const 
 		*pixel = ((r << 16) |(g << 8) | b);
 	}
 #endif
+}
+
+void GameOutputSound()
+{
 }
 
 void GameFullUpdate(GameScreenBuffer *buffer, const s32 colorOffsetX, const s32 colorOffsetY)

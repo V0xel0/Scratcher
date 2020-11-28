@@ -1,7 +1,23 @@
 #pragma once
-#include "Win32WindowsFiles.h"
+// Windows 10
+#define _WIN32_WINNT 0x0A00 
+// Use the C++ standard templated min/max
+#define NOMINMAX
+// Include <mcx.h> if you need this
+#define NOMCX
+// Include <winsvc.h> if you need this
+#define NOSERVICE
+// WinHelp is deprecated
+#define NOHELP
+#define WIN32_LEAN_AND_MEAN
+
+#include <WinSDKVer.h>
+#include <SDKDDKVer.h>
+#include <windows.h>
+#include <atlbase.h>
 #include <Xinput.h>
 #include <xaudio2.h>
+#include <cassert>
 
 // Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
 // In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is

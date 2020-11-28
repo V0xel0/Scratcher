@@ -1,5 +1,4 @@
 #pragma once
-#include "Utils.h"
 
 // This header declares services and data which game then provides to platform layer
 // Architecture style inspired from "handmadehero" series - Game is treated as a service to OS, instead of 
