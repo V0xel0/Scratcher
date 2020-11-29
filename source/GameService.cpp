@@ -1,5 +1,5 @@
-#include "GameService.h"
-#include "Utils.h"
+#include "GameService.hpp"
+#include "Utils.hpp"
 
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
 internal void testRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
@@ -45,7 +45,14 @@ void GameOutputSound()
 {
 }
 
-void GameFullUpdate(GameScreenBuffer *buffer, const s32 colorOffsetX, const s32 colorOffsetY)
+void GameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer)
 {
-	testRender(buffer, colorOffsetX, colorOffsetY);
+	GameState *gameState = (GameState*)memory->PermanentStorage;
+	if(!memory->isInitialized)
+	{
+		gameState->colorOffsetX = 0;
+		gameState->colorOffsetY = 0;
+		memory->isInitialized = true;
+	}
+	testRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
 }

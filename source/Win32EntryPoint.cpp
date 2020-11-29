@@ -1,13 +1,13 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "Utils.h"
-#include "GameService.h"
+#include "Utils.hpp"
+#include "GameService.hpp"
 
 #if UNITY_BUILD
 #include "GameService.cpp"
 #endif
 
-#include "Win32Platform.h"
+#include "Win32Platform.hpp"
 #include <omp.h>
 #include <cstdio>
 
@@ -31,24 +31,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// Creation and initalization of platform data and interfaces
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
-	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1920, 1080);
+	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1280, 720);
 	Win32::LoadXInputLibrary();
 	Win32::RegisterMouseForRawInput();
 	QueryPerformanceFrequency(&Win32::clockFrequency);
 
 	b32 isRunning = true;
-	s32 XOffset = 0;
-	s32 YOffset = 0;
 
 	// Timer variables
 	LARGE_INTEGER startTime{};
 	u64 cycleStart = 0, cycleEnd = 0;
-
-	GameScreenBuffer gameBuffer = {};
-	gameBuffer.height = Win32::internalBuffer.height;
-	gameBuffer.width = Win32::internalBuffer.width;
-	gameBuffer.pitch = Win32::internalBuffer.pitch;
-	gameBuffer.memory = Win32::internalBuffer.memory;
 
 	// Audio stuff
 
@@ -116,9 +108,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	hr = pSourceVoice->Start();
 	assert((HRESULT)hr >= 0);
 
-	// other audio
-	XAUDIO2_BUFFER laser1Buffer{};
-	WAVEFORMATEXTENSIBLE laserWFX = {}; // could consider using same format for everything
+	// Providing memory for game
+	//TODO: Consider big reserve and then commit as grow/needed for eventual editor
+	GameMemory gameMemory = {};
+	gameMemory.PermanentStorageSize = MiB(64);
+	gameMemory.TransientStorageSize = GiB(4);
+
+	// Check available memory
+	MEMORYSTATUSEX memStatus = {};
+	memStatus.dwLength = sizeof(memStatus);
+	GlobalMemoryStatusEx(&memStatus);
+	u64 availablePhysicalMemory = memStatus.ullAvailPhys;
+	u64 maxMemorySize = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
+	//TODO: make this assertion avaiable at release build
+	assert(maxMemorySize < availablePhysicalMemory && "Download more RAM");
+
+	gameMemory.PermanentStorage = VirtualAlloc(nullptr, maxMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	assert(gameMemory.PermanentStorage && "Failed to allocate memory from Windows");
+	gameMemory.TransientStorage =  (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
 	// Main Win32 platform loop
 	while (isRunning)
@@ -126,7 +133,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		QueryPerformanceCounter(&startTime);
 		cycleStart = __rdtsc();
 
-		// Windows message dispatching loop
 		MSG msg = {};
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
@@ -174,18 +180,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 		}
 #endif
-		XOffset += Win32::mouseData.lastDx;
-		YOffset += Win32::mouseData.lastDy;
-
-		Win32::mouseData.lastDx = 0;
-		Win32::mouseData.lastDy = 0;
+		// Fill game services
+		GameScreenBuffer gameBuffer = {};
+		gameBuffer.height = Win32::internalBuffer.height;
+		gameBuffer.width = Win32::internalBuffer.width;
+		gameBuffer.pitch = Win32::internalBuffer.pitch;
+		gameBuffer.memory = Win32::internalBuffer.memory;
 
 		// Update
-		GameFullUpdate(&gameBuffer, XOffset, YOffset);
+		GameFullUpdate(&gameMemory, &gameBuffer);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
-
-		++XOffset;
-		YOffset += 2;
 
 		// Timers
 		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);
