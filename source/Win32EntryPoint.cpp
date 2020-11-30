@@ -101,32 +101,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	}(hFile, fileBuffer, fileSize32);
 
 	auto &&[wfx, wavData, wavDataSize] = [](void *wavMemory) {
-		byte *ptr = (byte *)wavMemory;
-		u32 riffString = *(u32 *)ptr;
-		u32 waveString = *(u32 *)((byte *)ptr + 8);
-		
+		byte *seek = (byte *)wavMemory;
+		u32 riffString = *(u32 *)seek;
+		u32 waveString = *(u32 *)(seek + 8);
+
 		struct Output
 		{
 			WAVEFORMATEXTENSIBLE *wfx;
 			byte *data;
 			u32 dataSize;
-		}out;
+		} out;
 
 		if (riffString == 'FFIR' && waveString == 'EVAW')
 		{
 			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
-			u16 *seek = (u16 *)ptr;
-			while (*(u32*)seek != ' tmf')
-				seek++;
+			u32 smallOffset = sizeof(u16);
+			u32 bigOffset = sizeof(u32);
 
-			out.wfx = (WAVEFORMATEXTENSIBLE *)((u32 *)seek + 2);
-			u32 fmtSize = *( (u32 *)seek + 1);
-			
-			seek = (u16 *)((byte *)ptr + 20 + fmtSize);
-			while (*(u32*)seek != 'atad')
-				seek++;
-			out.data = (byte*)((u32*)seek + 2);
-			out.dataSize = *((u32*)seek + 1);
+			while (*(u32 *)seek != ' tmf')
+				seek += smallOffset;
+
+			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset * 2);
+			u32 fmtSize = *((u32 *)seek + 1);
+			seek += fmtSize;
+
+			while (*(u32 *)seek != 'atad')
+				seek += smallOffset;
+
+			out.data = (seek + bigOffset * 2);
+			out.dataSize = *((u32 *)seek + 1);
 		}
 		else
 		{
@@ -139,7 +142,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	xaudioBuffer.AudioBytes = wavDataSize;		//size of the audio buffer in bytes
 	xaudioBuffer.pAudioData = wavData;			//buffer containing audio data
 	xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
-	//xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+	xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 
 	// Create Source Voice and submit buffer to it
 	IXAudio2SourceVoice *pSourceVoice;
