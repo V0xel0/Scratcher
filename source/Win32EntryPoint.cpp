@@ -57,53 +57,93 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
 	GameAssert((HRESULT)hr >= 0);
 
-	WAVEFORMATEXTENSIBLE wfx = {};
 	XAUDIO2_BUFFER xaudioBuffer = {};
 
-	WCHAR *strFileName = (L"D:\\laser_1.wav");
+	const char *strFileName = ("D:\\menu_1.wav");
 
-	// Open the file
-	HANDLE hFile = CreateFileW(
+	// Open the Audio file
+	HANDLE hFile = CreateFileA(
 		strFileName,
 		GENERIC_READ,
 		FILE_SHARE_READ,
 		NULL,
 		OPEN_EXISTING,
 		0,
-		NULL);
+		0);
 
-	// if( INVALID_HANDLE_VALUE == hFile )
-	// 	return HRESULT_FROM_WIN32( GetLastError() );
+	LARGE_INTEGER fileSize64;
+	GetFileSizeEx(hFile, &fileSize64);
 
-	// if( INVALID_SET_FILE_POINTER == SetFilePointer( hFile, 0, NULL, FILE_BEGIN ) )
-	// 	return HRESULT_FROM_WIN32( GetLastError() );
+	u32 fileSize32 = [](u64 val) {
+		GameAssert(val <= UINT_MAX);
+		u32 Result = (u32)val;
+		return (Result);
+	}(fileSize64.QuadPart);
 
-	DWORD dwChunkSize;
-	DWORD dwChunkPosition;
+	BYTE *fileBuffer = new BYTE[fileSize32];
 
-	//check the file type, should be fourccWAVE or 'XWMA'
-	Win32::FindChunk(hFile, fourccRIFF, dwChunkSize, dwChunkPosition);
-	DWORD filetype;
-	Win32::ReadChunkData(hFile, &filetype, sizeof(DWORD), dwChunkPosition);
-	// if (filetype != fourccWAVE)
-	// 	return S_FALSE;
+	[](HANDLE hFile, void *fileBuffer, u32 fileSize32) {
+		if (hFile != INVALID_HANDLE_VALUE)
+		{
+			DWORD bytesRead;
+			if (ReadFile(hFile, fileBuffer, fileSize32, &bytesRead, 0) && bytesRead == fileSize32)
+			{
+			}
+			else
+			{
+				//TODO: Log
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+	}(hFile, fileBuffer, fileSize32);
 
-	Win32::FindChunk(hFile, fourccFMT, dwChunkSize, dwChunkPosition);
-	Win32::ReadChunkData(hFile, &wfx, dwChunkSize, dwChunkPosition);
+	auto &&[wfx, wavData, wavDataSize] = [](void *wavMemory) {
+		byte *ptr = (byte *)wavMemory;
+		u32 riffString = *(u32 *)ptr;
+		u32 waveString = *(u32 *)((byte *)ptr + 8);
+		
+		struct Output
+		{
+			WAVEFORMATEXTENSIBLE *wfx;
+			byte *data;
+			u32 dataSize;
+		}out;
 
-	//fill out the audio data buffer with the contents of the fourccDATA chunk
-	Win32::FindChunk(hFile, fourccDATA, dwChunkSize, dwChunkPosition);
-	BYTE *pDataBuffer = new BYTE[dwChunkSize];
-	Win32::ReadChunkData(hFile, pDataBuffer, dwChunkSize, dwChunkPosition);
+		if (riffString == 'FFIR' && waveString == 'EVAW')
+		{
+			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
+			u16 *seek = (u16 *)ptr;
+			while (*(u32*)seek != ' tmf')
+				seek++;
 
-	xaudioBuffer.AudioBytes = dwChunkSize;		//size of the audio buffer in bytes
-	xaudioBuffer.pAudioData = pDataBuffer;		//buffer containing audio data
+			out.wfx = (WAVEFORMATEXTENSIBLE *)((u32 *)seek + 2);
+			u32 fmtSize = *( (u32 *)seek + 1);
+			
+			seek = (u16 *)((byte *)ptr + 20 + fmtSize);
+			while (*(u32*)seek != 'atad')
+				seek++;
+			out.data = (byte*)((u32*)seek + 2);
+			out.dataSize = *((u32*)seek + 1);
+		}
+		else
+		{
+			//TODO: Log/Error
+			GameAssert(0 && "Not a .wav file!");
+		}
+		return out;
+	}(fileBuffer);
+
+	xaudioBuffer.AudioBytes = wavDataSize;		//size of the audio buffer in bytes
+	xaudioBuffer.pAudioData = wavData;			//buffer containing audio data
 	xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
 	//xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 
 	// Create Source Voice and submit buffer to it
 	IXAudio2SourceVoice *pSourceVoice;
-	hr = XAudio2->CreateSourceVoice(&pSourceVoice, (WAVEFORMATEX *)&wfx);
+	hr = XAudio2->CreateSourceVoice(&pSourceVoice, (WAVEFORMATEX *)wfx);
 	GameAssert((HRESULT)hr >= 0);
 	hr = pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
 	GameAssert((HRESULT)hr >= 0);

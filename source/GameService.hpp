@@ -22,7 +22,7 @@ struct GameInputMouse
 
 };
 
-struct GameSoundSystem
+struct GameOutputSound
 {
 
 };
