@@ -1,6 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "Utils.hpp"
+#include "GameAssertions.hpp"
+#include "GameBuildsInterfaces.hpp"
 #include "GameService.hpp"
 
 #if UNITY_BUILD
@@ -10,6 +12,7 @@
 #include "Win32Platform.hpp"
 #include <omp.h>
 #include <cstdio>
+#include <cassert>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
 inline internal s64 ElapsedMsHere(const s64 startPoint)
@@ -49,10 +52,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	ATL::CComPtr<IXAudio2> XAudio2;
 	HRESULT hr;
 	hr = XAudio2Create(&XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
-	assert((HRESULT)hr >= 0);
+	GameAssert((HRESULT)hr >= 0);
 	IXAudio2MasteringVoice *pMasterVoice = nullptr;
 	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
-	assert((HRESULT)hr >= 0);
+	GameAssert((HRESULT)hr >= 0);
 
 	WAVEFORMATEXTENSIBLE wfx = {};
 	XAUDIO2_BUFFER xaudioBuffer = {};
@@ -77,6 +80,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	DWORD dwChunkSize;
 	DWORD dwChunkPosition;
+
 	//check the file type, should be fourccWAVE or 'XWMA'
 	Win32::FindChunk(hFile, fourccRIFF, dwChunkSize, dwChunkPosition);
 	DWORD filetype;
@@ -100,13 +104,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// Create Source Voice and submit buffer to it
 	IXAudio2SourceVoice *pSourceVoice;
 	hr = XAudio2->CreateSourceVoice(&pSourceVoice, (WAVEFORMATEX *)&wfx);
-	assert((HRESULT)hr >= 0);
+	GameAssert((HRESULT)hr >= 0);
 	hr = pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
-	assert((HRESULT)hr >= 0);
+	GameAssert((HRESULT)hr >= 0);
 
 	// Activate Source voice
 	hr = pSourceVoice->Start();
-	assert((HRESULT)hr >= 0);
+	GameAssert((HRESULT)hr >= 0);
 
 	// Providing memory for game
 	//TODO: Consider big reserve and then commit as grow/needed for eventual editor
@@ -120,12 +124,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GlobalMemoryStatusEx(&memStatus);
 	u64 availablePhysicalMemory = memStatus.ullAvailPhys;
 	u64 maxMemorySize = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
-	//TODO: make this assertion avaiable at release build
-	assert(maxMemorySize < availablePhysicalMemory && "Download more RAM");
+	AlwaysAssert(maxMemorySize < availablePhysicalMemory && "Download more RAM");
 
 	gameMemory.PermanentStorage = VirtualAlloc(nullptr, maxMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-	assert(gameMemory.PermanentStorage && "Failed to allocate memory from Windows");
-	gameMemory.TransientStorage =  (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
+	AlwaysAssert(gameMemory.PermanentStorage && "Failed to allocate memory from Windows");
+	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
 	// Main Win32 platform loop
 	while (isRunning)

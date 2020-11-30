@@ -17,7 +17,6 @@
 #include <atlbase.h>
 #include <Xinput.h>
 #include <xaudio2.h>
-#include <cassert>
 
 // Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
 // In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is
@@ -65,7 +64,7 @@ namespace Win32
 	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
 	internal void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
 	{
-		assert(buffer != nullptr);
+		GameAssert(buffer != nullptr);
 		if (buffer->memory)
 		{
 			VirtualFree(buffer->memory, 0, MEM_RELEASE);
@@ -100,7 +99,7 @@ namespace Win32
 	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
 	internal void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer *buffer)
 	{
-		assert(buffer != nullptr);
+		GameAssert(buffer != nullptr);
 		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
 		//TODO: BitBlt might be faster
 		StretchDIBits(
@@ -296,7 +295,7 @@ namespace Win32
 		//windowClass.hIconSm = LoadIcon(windowClass.hInstance, "IDI_ICON");
 
 		const s32 error = RegisterClassExA(&windowClass);
-		assert(error != 0 && "Class registration failed");
+		GameAssert(error != 0 && "Class registration failed");
 
 		RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
 		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
@@ -316,7 +315,7 @@ namespace Win32
 			instance,
 			nullptr);
 
-		assert(mainWindow != nullptr && "Window creation failed");
+		GameAssert(mainWindow != nullptr && "Window creation failed");
 
 		ShowWindow(mainWindow, SW_SHOW);
 		SetForegroundWindow(mainWindow);
@@ -384,7 +383,7 @@ namespace Win32
 		{
 			//TODO: Proper handling in case of failure to register mouse and/or keyboard
 			MessageBoxA(NULL, "Could not register mouse and/or keyboard for raw input", "error", 0);
-			assert(0);
+			GameAssert(0);
 		}
 	}
 
