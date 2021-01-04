@@ -61,7 +61,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	const char *strFileName = ("D:\\menu_1.wav");
 
-	// Open the Audio file
 	HANDLE hFile = CreateFileA(
 		strFileName,
 		GENERIC_READ,
@@ -101,6 +100,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	}(hFile, fileBuffer, fileSize32);
 
 	auto &&[wfx, wavData, wavDataSize] = [](void *wavMemory) {
+		if (wavMemory == nullptr)
+			//TODO: Log/Error
+			GameAssert(0);
+
 		byte *seek = (byte *)wavMemory;
 		u32 riffString = *(u32 *)seek;
 		u32 waveString = *(u32 *)(seek + 8);
@@ -116,19 +119,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		{
 			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
 			u32 smallOffset = sizeof(u16);
-			u32 bigOffset = sizeof(u32);
+			u32 bigOffset = smallOffset * 4;
 
 			while (*(u32 *)seek != ' tmf')
 				seek += smallOffset;
 
-			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset * 2);
+			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset);
 			u32 fmtSize = *((u32 *)seek + 1);
 			seek += fmtSize;
 
 			while (*(u32 *)seek != 'atad')
 				seek += smallOffset;
 
-			out.data = (seek + bigOffset * 2);
+			out.data = (seek + bigOffset);
 			out.dataSize = *((u32 *)seek + 1);
 		}
 		else
