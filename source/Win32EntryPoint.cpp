@@ -1,8 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "Utils.hpp"
 #include "GameAssertions.hpp"
-#include "GameBuildsInterfaces.hpp"
+#include "Utils.hpp"
 #include "GameService.hpp"
 
 #if UNITY_BUILD
@@ -12,7 +11,6 @@
 #include "Win32Platform.hpp"
 #include <omp.h>
 #include <cstdio>
-#include <cassert>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
 inline internal s64 ElapsedMsHere(const s64 startPoint)
@@ -59,88 +57,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	XAUDIO2_BUFFER xaudioBuffer = {};
 
-	const char *strFileName = ("D:\\menu_1.wav");
-
-	HANDLE hFile = CreateFileA(
-		strFileName,
-		GENERIC_READ,
-		FILE_SHARE_READ,
-		NULL,
-		OPEN_EXISTING,
-		0,
-		0);
-
-	LARGE_INTEGER fileSize64;
-	GetFileSizeEx(hFile, &fileSize64);
-
-	u32 fileSize32 = [](u64 val) {
-		GameAssert(val <= UINT_MAX);
-		u32 Result = (u32)val;
-		return (Result);
-	}(fileSize64.QuadPart);
-
-	BYTE *fileBuffer = new BYTE[fileSize32];
-
-	[](HANDLE hFile, void *fileBuffer, u32 fileSize32) {
-		if (hFile != INVALID_HANDLE_VALUE)
-		{
-			DWORD bytesRead;
-			if (ReadFile(hFile, fileBuffer, fileSize32, &bytesRead, 0) && bytesRead == fileSize32)
-			{
-			}
-			else
-			{
-				//TODO: Log
-			}
-		}
-		else
-		{
-			//TODO: Log
-		}
-	}(hFile, fileBuffer, fileSize32);
-
-	auto &&[wfx, wavData, wavDataSize] = [](void *wavMemory) {
-		if (wavMemory == nullptr)
-			//TODO: Log/Error
-			GameAssert(0);
-
-		byte *seek = (byte *)wavMemory;
-		u32 riffString = *(u32 *)seek;
-		u32 waveString = *(u32 *)(seek + 8);
-
-		struct Output
-		{
-			WAVEFORMATEXTENSIBLE *wfx;
-			byte *data;
-			u32 dataSize;
-		} out;
-
-		if (riffString == 'FFIR' && waveString == 'EVAW')
-		{
-			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
-			u32 smallOffset = sizeof(u16);
-			u32 bigOffset = smallOffset * 4;
-
-			while (*(u32 *)seek != ' tmf')
-				seek += smallOffset;
-
-			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset);
-			u32 fmtSize = *((u32 *)seek + 1);
-			seek += fmtSize;
-
-			while (*(u32 *)seek != 'atad')
-				seek += smallOffset;
-
-			out.data = (seek + bigOffset);
-			out.dataSize = *((u32 *)seek + 1);
-		}
-		else
-		{
-			//TODO: Log/Error
-			GameAssert(0 && "Not a .wav file!");
-		}
-		return out;
-	}(fileBuffer);
+	auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
+	auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(rawFileData);
 
 	xaudioBuffer.AudioBytes = wavDataSize;		//size of the audio buffer in bytes
 	xaudioBuffer.pAudioData = wavData;			//buffer containing audio data

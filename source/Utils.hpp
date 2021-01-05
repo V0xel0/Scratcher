@@ -29,7 +29,32 @@ using byte = u8;
 constexpr f32 PI32 =  3.14159265359f;
 constexpr f64 PI64 =  3.14159265359;
 
-#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+template <typename F>
+struct DummyDefer 
+{
+	F f;
+	DummyDefer(F f) : f(f) {}
+	~DummyDefer() { f(); }
+};
+
+template <typename F>
+DummyDefer<F> deferFunction(F f) 
+{
+	return DummyDefer<F>(f);
+}
+
+u32 truncU64toU32(u64 val) 
+{
+	GameAssert(val <= 0xffffffff);
+	u32 Result = (u32)val;
+	return (Result);
+};
+
+template <typename T, s64 N>
+constexpr s64 ArrayCount64(const T (&array)[N]) noexcept
+{
+    return N;
+}
 
 #define AlignAddressPow2(Value, Alignment) ( (Value) + ( (Alignment) - 1) ) & ~( (Alignment) - 1 ) 
 #define AlignAddress4(Value)  ( (Value + 3) & ~3)

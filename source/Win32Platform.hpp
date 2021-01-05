@@ -47,6 +47,122 @@ namespace Win32
 		s32 lastDy;
 	};
 
+	#if GAME_INTERNAL
+	internal auto DebugReadFile(char *fileName)
+	{
+		struct Output
+		{
+			void *data;
+			u32 dataSize;
+		}out;
+		
+		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+		auto d = deferFunction([&] { CloseHandle(fileHandle); });
+
+		if(fileHandle != INVALID_HANDLE_VALUE)
+		{
+			LARGE_INTEGER fileSize;
+			
+			if(GetFileSizeEx(fileHandle, &fileSize))
+			{
+				u32 fileSize32 = truncU64toU32(fileSize.QuadPart);
+				out.data = VirtualAlloc(0, fileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+
+				if(out.data)
+				{
+					DWORD bytesRead;
+					if(ReadFile(fileHandle, out.data, fileSize32, &bytesRead, 0) && (fileSize32 == bytesRead))
+					{
+						out.dataSize = fileSize32;
+					}
+					else
+					{                    
+						VirtualFree(out.data, 0, MEM_RELEASE);
+						out.data = nullptr;
+						//TODO: Log
+					}
+				}
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+		
+		return(out);
+	}
+
+	internal b32 DebugWriteFile(char *fileName, void *memory, u32 memSize)
+	{
+		b32 isSuccessful = false;
+		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+		auto d = deferFunction([&] {CloseHandle(fileHandle);});
+
+		if (fileHandle != INVALID_HANDLE_VALUE)
+		{
+			DWORD bytesWritten;
+			if(WriteFile(fileHandle, memory, memSize, &bytesWritten, 0))
+			{
+				isSuccessful = (bytesWritten == memSize);
+			}
+			else
+			{
+				//TODO: Log
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+		
+		return isSuccessful;
+	}
+	#endif
+
+	internal auto parseWaveData(void *wavMemory) 
+	{
+		if (wavMemory == nullptr)
+			//TODO: Log/Error
+			GameAssert(0);
+
+		byte *seek = (byte *)wavMemory;
+		u32 riffString = *(u32 *)seek;
+		u32 waveString = *(u32 *)(seek + 8);
+
+		struct Output
+		{
+			WAVEFORMATEXTENSIBLE *wfx;
+			byte *data;
+			u32 dataSize;
+		} out;
+
+		if (riffString == 'FFIR' && waveString == 'EVAW')
+		{
+			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
+			u32 smallOffset = sizeof(u16);
+			u32 bigOffset = smallOffset * 4;
+
+			while (*(u32 *)seek != ' tmf')
+				seek += smallOffset;
+
+			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset);
+			u32 fmtSize = *((u32 *)seek + 1);
+			seek += fmtSize;
+
+			while (*(u32 *)seek != 'atad')
+				seek += smallOffset;
+
+			out.data = (seek + bigOffset);
+			out.dataSize = *((u32 *)seek + 1);
+		}
+		else
+		{
+			//TODO: Log/Error
+			GameAssert(0 && "Not a .wav file!");
+		}
+		return out;
+	}
+
 	//====================================INTERNAL GLOBALS===============================================================================
 	// Internal globals are never exposed to application layer directly, they are mostly data that
 	// needs to be shared with window CALLBACK function in Windows
@@ -95,7 +211,7 @@ namespace Win32
 		return out;
 	}
 
-	// Used for updating window contents when WM_PAINT msg from windows appears or when platform layer wants to update
+	// Used for updating window data when WM_PAINT msg from windows appears or when platform layer wants to update
 	// It copies the color data from buffer rectangle to client area of a window, it also stretches the buffer to fit the client area
 	internal void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer *buffer)
 	{
@@ -113,7 +229,7 @@ namespace Win32
 	// Windows callback functions for window messages processing. It is being called by "DispatchMessage" or directly by Windows
 	LRESULT CALLBACK mainWindowCallback(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 	{
-		LRESULT result = 0;
+		LRESULT output = 0;
 
 		switch (message)
 		{
@@ -254,7 +370,7 @@ namespace Win32
 
 		case WM_MENUCHAR:
 		{
-			result = MAKELRESULT(0, MNC_CLOSE);
+			output = MAKELRESULT(0, MNC_CLOSE);
 		}
 		break;
 
@@ -267,12 +383,12 @@ namespace Win32
 
 		default:
 		{
-			result = DefWindowProc(window, message, wParam, lParam);
+			output = DefWindowProc(window, message, wParam, lParam);
 		}
 		break;
 		}
 
-		return (result);
+		return (output);
 	}
 
 	// Creates window for current process, cause of CS_OWNDC device context is assumed to not be shared with anyone

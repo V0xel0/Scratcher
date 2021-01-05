@@ -22,9 +22,17 @@ struct GameInputMouse
 
 };
 
+struct GameSound
+{
+	void *data;
+	u64 size;
+	s32 playCount;
+};
+
 struct GameOutputSound
 {
-
+	s32 maxConcurrentSounds;
+	GameSound *buffer;
 };
 
 struct GameKeyState
