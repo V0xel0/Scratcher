@@ -45,31 +45,36 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSoun
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
 	GameSound *soundToPlayBuffer = (GameSound *)memory->TransientStorage;
-	s32 *soundsToPlay = (s32 *)((byte *)memory->TransientStorage + sizeof(GameSound));
+	s32 *soundsToPlay = (s32 *)((byte *)memory->TransientStorage + 2 * sizeof(GameSound));
 
-	if(!memory->isInitialized)
+	if (!memory->isInitialized)
 	{
 		gameState->colorOffsetX = 0;
 		gameState->colorOffsetY = 0;
 
-		//TODO: Temporary!
+		//TODO: All sound playing by "DebugReadFile" is temporary!
 		auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
 		soundToPlayBuffer->data = rawFileData;
 		soundToPlayBuffer->size = rawFileSize;
 
+		auto &&[otherFileData, otherFileSize] = Win32::DebugReadFile("D:/laser_1.wav");
+		soundToPlayBuffer[1].data = otherFileData;
+		soundToPlayBuffer[1].size = otherFileSize;
+
 		sounds->areNewSoundAssetsAdded = true;
-		sounds->maxSoundSources = 1;
+		sounds->maxSoundSources = 2;
 		sounds->buffer = soundToPlayBuffer;
 		sounds->playCounts = soundsToPlay;
+
 		++sounds->playCounts[0];
+		++sounds->playCounts[1];
 
 		memory->isInitialized = true;
 	}
 
-	sounds->maxSoundSources = 1;
+	sounds->maxSoundSources = 2;
 	sounds->buffer = soundToPlayBuffer;
 	sounds->playCounts = soundsToPlay;
-	
 
 	testRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
 }

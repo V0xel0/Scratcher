@@ -150,43 +150,50 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		gameFullUpdate(&gameMemory, &gameBuffer, &gameSoundBuffer);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
-		if(gameSoundBuffer.areNewSoundAssetsAdded)
+		if (gameSoundBuffer.areNewSoundAssetsAdded)
 		{
+			//? Hacky way to check if we replacing existing data
+			if (xaudioCustomBuffers[0].wfx != nullptr)
+			{
+				for (int j = 0; j < maxActiveSounds; ++j)
+				{
+					hr = sourceVoices[j]->Stop();
+					GameAssert((HRESULT)hr >= 0);
+					hr = sourceVoices[j]->FlushSourceBuffers();
+					GameAssert((HRESULT)hr >= 0);
+				}
+			}
+
 			for (int i = 0; i < gameSoundBuffer.maxSoundSources; ++i)
 			{
-				// hr = sourceVoices[i]->Stop();
-				// GameAssert((HRESULT)hr >= 0);
-				// hr = sourceVoices[i]->FlushSourceBuffers();
-				// GameAssert((HRESULT)hr >= 0);
-
 				auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(gameSoundBuffer.buffer[i].data);
 
-				xaudioCustomBuffers[i].buffer.AudioBytes = wavDataSize;		//size of the audio buffer in bytes
-				xaudioCustomBuffers[i].buffer.pAudioData = wavData;			//buffer containing audio data
+				xaudioCustomBuffers[i].buffer.AudioBytes = wavDataSize;		 //size of the audio buffer in bytes
+				xaudioCustomBuffers[i].buffer.pAudioData = wavData;			 //buffer containing audio data
 				xaudioCustomBuffers[i].buffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
 				xaudioCustomBuffers[i].buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
 				xaudioCustomBuffers[i].wfx = wfx;
 			}
-			//? Assumed same format, frequency, channels for all sound data
-			for(int j = 0; j < maxActiveSounds; ++j)
+			//? If same format, frequency, channels for all sound data
+			for (int j = 0; j < maxActiveSounds; ++j)
 			{
 				hr = XAudio2->CreateSourceVoice(&sourceVoices[j], (WAVEFORMATEX *)xaudioCustomBuffers[0].wfx);
 				GameAssert((HRESULT)hr >= 0);
 			}
 		}
-		
-		for(int p = 0; p < gameSoundBuffer.maxSoundSources; ++p)
+
+		for (int p = 0; p < gameSoundBuffer.maxSoundSources; ++p)
 		{
-			//bool hack = true;
-			for ( int s = 0; s < gameSoundBuffer.playCounts[p]; ++s)
+			bool hack = true;
+			for (int s = 0; s < gameSoundBuffer.playCounts[p]; ++s)
 			{
-				// //TODO: Check if it is possible to skip "CreateSourceVoice" - do it only once
-				// if(hack)
-				// {
-				// 	hr = XAudio2->CreateSourceVoice(&sourceVoices[nextFreeVoiceID], (WAVEFORMATEX *)xaudioCustomBuffers[p].wfx);
-				// 	GameAssert((HRESULT)hr >= 0);
-				// 	hack = !hack;
-				// }
+				//TODO: Check if it is possible to skip "CreateSourceVoice" - do it only once
+				if (hack)
+				{
+					hr = XAudio2->CreateSourceVoice(&sourceVoices[nextFreeVoiceID], (WAVEFORMATEX *)xaudioCustomBuffers[p].wfx);
+					GameAssert((HRESULT)hr >= 0);
+					hack = !hack;
+				}
 
 				hr = sourceVoices[nextFreeVoiceID]->SubmitSourceBuffer(&xaudioCustomBuffers[p].buffer);
 				GameAssert((HRESULT)hr >= 0);
@@ -197,8 +204,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				nextFreeVoiceID = (nextFreeVoiceID + 1) % maxActiveSounds;
 			}
 		}
-		
-			
 
 		// Timers
 		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);
