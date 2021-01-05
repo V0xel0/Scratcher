@@ -45,6 +45,7 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSoun
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
 	GameSound *soundToPlayBuffer = (GameSound *)memory->TransientStorage;
+	s32 *soundsToPlay = (s32 *)((byte *)memory->TransientStorage + sizeof(GameSound));
 
 	if(!memory->isInitialized)
 	{
@@ -53,15 +54,22 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSoun
 
 		//TODO: Temporary!
 		auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
-		soundToPlayBuffer->playCount = 1;
 		soundToPlayBuffer->data = rawFileData;
 		soundToPlayBuffer->size = rawFileSize;
 
-		sounds->isDataChanged = true;
-		sounds->soundsToPlay = 1;
+		sounds->areNewSoundAssetsAdded = true;
+		sounds->maxSoundSources = 1;
 		sounds->buffer = soundToPlayBuffer;
+		sounds->playCounts = soundsToPlay;
+		++sounds->playCounts[0];
 
 		memory->isInitialized = true;
 	}
+
+	sounds->maxSoundSources = 1;
+	sounds->buffer = soundToPlayBuffer;
+	sounds->playCounts = soundsToPlay;
+	
+
 	testRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
 }

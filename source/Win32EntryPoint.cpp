@@ -24,6 +24,12 @@ inline internal s64 ElapsedMsHere(const s64 startPoint)
 	return elapsedMs;
 }
 
+struct XAudioCustomBuffer
+{
+	XAUDIO2_BUFFER buffer;
+	WAVEFORMATEXTENSIBLE *wfx;
+};
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	//?	Consider "inline style" (would be great to have named, capture scopes) as discussed by John Carmack here:
@@ -56,7 +62,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//TODO: Consider passing it to game?
 	constexpr s32 maxAudioSources = 64;
 	constexpr s32 maxActiveSounds = 64;
-	XAUDIO2_BUFFER xaudioBuffers[maxAudioSources] = {};
+	s32 nextFreeVoiceID = 0;
+	XAudioCustomBuffer xaudioCustomBuffers[maxAudioSources] = {};
 	IXAudio2SourceVoice *sourceVoices[maxActiveSounds] = {};
 
 	// Providing memory for game
@@ -143,31 +150,55 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		gameFullUpdate(&gameMemory, &gameBuffer, &gameSoundBuffer);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
-		if(gameSoundBuffer.isDataChanged)
+		if(gameSoundBuffer.areNewSoundAssetsAdded)
 		{
-			for (int i = 0; i < gameSoundBuffer.soundsToPlay; ++i)
+			for (int i = 0; i < gameSoundBuffer.maxSoundSources; ++i)
 			{
+				// hr = sourceVoices[i]->Stop();
+				// GameAssert((HRESULT)hr >= 0);
+				// hr = sourceVoices[i]->FlushSourceBuffers();
+				// GameAssert((HRESULT)hr >= 0);
+
 				auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(gameSoundBuffer.buffer[i].data);
 
-				xaudioBuffers[i].AudioBytes = wavDataSize;		//size of the audio buffer in bytes
-				xaudioBuffers[i].pAudioData = wavData;			//buffer containing audio data
-				xaudioBuffers[i].Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
-				xaudioBuffers[i].LoopCount = XAUDIO2_LOOP_INFINITE;
-
-				//TODO: For more than 1 concurrent sound assign n voices
-				hr = XAudio2->CreateSourceVoice(&sourceVoices[i], (WAVEFORMATEX *)wfx);
-				GameAssert((HRESULT)hr >= 0);
-				hr = sourceVoices[i]->SubmitSourceBuffer(&xaudioBuffers[i]);
+				xaudioCustomBuffers[i].buffer.AudioBytes = wavDataSize;		//size of the audio buffer in bytes
+				xaudioCustomBuffers[i].buffer.pAudioData = wavData;			//buffer containing audio data
+				xaudioCustomBuffers[i].buffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
+				xaudioCustomBuffers[i].buffer.LoopCount = XAUDIO2_LOOP_INFINITE;
+				xaudioCustomBuffers[i].wfx = wfx;
+			}
+			//? Assumed same format, frequency, channels for all sound data
+			for(int j = 0; j < maxActiveSounds; ++j)
+			{
+				hr = XAudio2->CreateSourceVoice(&sourceVoices[j], (WAVEFORMATEX *)xaudioCustomBuffers[0].wfx);
 				GameAssert((HRESULT)hr >= 0);
 			}
 		}
-		//TODO: should start playing from either from last(dummy ringbuffer) or the ones not playing?
-		for (int i = 0; i < gameSoundBuffer.soundsToPlay; ++i)
+		
+		for(int p = 0; p < gameSoundBuffer.maxSoundSources; ++p)
 		{
-			//TODO: For more than 1 concurrent sound play n voices
-			hr = sourceVoices[i]->Start();
-			GameAssert((HRESULT)hr >= 0);
+			//bool hack = true;
+			for ( int s = 0; s < gameSoundBuffer.playCounts[p]; ++s)
+			{
+				// //TODO: Check if it is possible to skip "CreateSourceVoice" - do it only once
+				// if(hack)
+				// {
+				// 	hr = XAudio2->CreateSourceVoice(&sourceVoices[nextFreeVoiceID], (WAVEFORMATEX *)xaudioCustomBuffers[p].wfx);
+				// 	GameAssert((HRESULT)hr >= 0);
+				// 	hack = !hack;
+				// }
+
+				hr = sourceVoices[nextFreeVoiceID]->SubmitSourceBuffer(&xaudioCustomBuffers[p].buffer);
+				GameAssert((HRESULT)hr >= 0);
+				hr = sourceVoices[nextFreeVoiceID]->Start();
+				GameAssert((HRESULT)hr >= 0);
+
+				gameSoundBuffer.playCounts[p] = gameSoundBuffer.playCounts[p] > 0 ? --gameSoundBuffer.playCounts[p] : 0;
+				nextFreeVoiceID = (nextFreeVoiceID + 1) % maxActiveSounds;
+			}
 		}
+		
+			
 
 		// Timers
 		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);
