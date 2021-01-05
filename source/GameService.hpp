@@ -31,7 +31,8 @@ struct GameSound
 
 struct GameOutputSound
 {
-	s32 maxConcurrentSounds;
+	s32 soundsToPlay;
+	b32 isDataChanged;
 	GameSound *buffer;
 };
 
@@ -62,4 +63,4 @@ struct GameState
 	s32 colorOffsetY;
 };
 
-void GameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer);
+void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSound *sounds);

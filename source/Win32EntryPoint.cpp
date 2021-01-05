@@ -2,13 +2,13 @@
 
 #include "GameAssertions.hpp"
 #include "Utils.hpp"
+#include "Win32Platform.hpp"
 #include "GameService.hpp"
 
 #if UNITY_BUILD
 #include "GameService.cpp"
 #endif
 
-#include "Win32Platform.hpp"
 #include <omp.h>
 #include <cstdio>
 
@@ -44,9 +44,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	u64 cycleStart = 0, cycleEnd = 0;
 
 	// Audio stuff
-
 	CoInitializeEx(NULL, COINIT_MULTITHREADED);
-
 	ATL::CComPtr<IXAudio2> XAudio2;
 	HRESULT hr;
 	hr = XAudio2Create(&XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
@@ -55,26 +53,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
 	GameAssert((HRESULT)hr >= 0);
 
-	XAUDIO2_BUFFER xaudioBuffer = {};
-
-	auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
-	auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(rawFileData);
-
-	xaudioBuffer.AudioBytes = wavDataSize;		//size of the audio buffer in bytes
-	xaudioBuffer.pAudioData = wavData;			//buffer containing audio data
-	xaudioBuffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
-	xaudioBuffer.LoopCount = XAUDIO2_LOOP_INFINITE;
-
-	// Create Source Voice and submit buffer to it
-	IXAudio2SourceVoice *pSourceVoice;
-	hr = XAudio2->CreateSourceVoice(&pSourceVoice, (WAVEFORMATEX *)wfx);
-	GameAssert((HRESULT)hr >= 0);
-	hr = pSourceVoice->SubmitSourceBuffer(&xaudioBuffer);
-	GameAssert((HRESULT)hr >= 0);
-
-	// Activate Source voice
-	hr = pSourceVoice->Start();
-	GameAssert((HRESULT)hr >= 0);
+	//TODO: Consider passing it to game?
+	constexpr s32 maxAudioSources = 64;
+	constexpr s32 maxActiveSounds = 64;
+	XAUDIO2_BUFFER xaudioBuffers[maxAudioSources] = {};
+	IXAudio2SourceVoice *sourceVoices[maxActiveSounds] = {};
 
 	// Providing memory for game
 	//TODO: Consider big reserve and then commit as grow/needed for eventual editor
@@ -154,9 +137,37 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		gameBuffer.pitch = Win32::internalBuffer.pitch;
 		gameBuffer.memory = Win32::internalBuffer.memory;
 
+		GameOutputSound gameSoundBuffer = {};
+
 		// Update
-		GameFullUpdate(&gameMemory, &gameBuffer);
+		gameFullUpdate(&gameMemory, &gameBuffer, &gameSoundBuffer);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
+
+		if(gameSoundBuffer.isDataChanged)
+		{
+			for (int i = 0; i < gameSoundBuffer.soundsToPlay; ++i)
+			{
+				auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(gameSoundBuffer.buffer[i].data);
+
+				xaudioBuffers[i].AudioBytes = wavDataSize;		//size of the audio buffer in bytes
+				xaudioBuffers[i].pAudioData = wavData;			//buffer containing audio data
+				xaudioBuffers[i].Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
+				xaudioBuffers[i].LoopCount = XAUDIO2_LOOP_INFINITE;
+
+				//TODO: For more than 1 concurrent sound assign n voices
+				hr = XAudio2->CreateSourceVoice(&sourceVoices[i], (WAVEFORMATEX *)wfx);
+				GameAssert((HRESULT)hr >= 0);
+				hr = sourceVoices[i]->SubmitSourceBuffer(&xaudioBuffers[i]);
+				GameAssert((HRESULT)hr >= 0);
+			}
+		}
+		//TODO: should start playing from either from last(dummy ringbuffer) or the ones not playing?
+		for (int i = 0; i < gameSoundBuffer.soundsToPlay; ++i)
+		{
+			//TODO: For more than 1 concurrent sound play n voices
+			hr = sourceVoices[i]->Start();
+			GameAssert((HRESULT)hr >= 0);
+		}
 
 		// Timers
 		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);

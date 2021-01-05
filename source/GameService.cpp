@@ -41,17 +41,26 @@ internal void testRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const 
 #endif
 }
 
-void GameOutputSound()
+void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSound *sounds)
 {
-}
+	GameState *gameState = (GameState *)memory->PermanentStorage;
+	GameSound *soundToPlayBuffer = (GameSound *)memory->TransientStorage;
 
-void GameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer)
-{
-	GameState *gameState = (GameState*)memory->PermanentStorage;
 	if(!memory->isInitialized)
 	{
 		gameState->colorOffsetX = 0;
 		gameState->colorOffsetY = 0;
+
+		//TODO: Temporary!
+		auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
+		soundToPlayBuffer->playCount = 1;
+		soundToPlayBuffer->data = rawFileData;
+		soundToPlayBuffer->size = rawFileSize;
+
+		sounds->isDataChanged = true;
+		sounds->soundsToPlay = 1;
+		sounds->buffer = soundToPlayBuffer;
+
 		memory->isInitialized = true;
 	}
 	testRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
