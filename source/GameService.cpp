@@ -1,8 +1,15 @@
 #include "GameService.hpp"
 #include "Utils.hpp"
 
+enum SoundTypeID
+{
+	Menu1,
+	LaserBullet,
+	CountOfTypes
+};
+
 // TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
-internal void testRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
+internal void gameRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
 {
 	s32 width = gameBuffer->width;
 	s32 height = gameBuffer->height;
@@ -41,40 +48,48 @@ internal void testRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const 
 #endif
 }
 
-void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSound *sounds)
+internal void gameSendSoundsToPlay(GameSoundOutput *platform, GameSoundOutput *gameOut)
+{
+	platform->areNewSoundAssetsAdded = gameOut->areNewSoundAssetsAdded;
+	platform->buffer = gameOut->buffer;
+	platform->maxSoundAssets = gameOut->maxSoundAssets;
+	platform->soundsPlayingCounts = gameOut->soundsPlayingCounts;
+}
+
+void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds)
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
-	GameSound *soundToPlayBuffer = (GameSound *)memory->TransientStorage;
-	s32 *soundsToPlay = (s32 *)((byte *)memory->TransientStorage + 2 * sizeof(GameSound));
+
+	GameSoundOutput *soundOutput = (GameSoundOutput *)memory->TransientStorage;
+	soundOutput->buffer = (GameSoundAsset *)((byte *)memory->TransientStorage + sizeof(GameSoundOutput));
+	soundOutput->soundsPlayingCounts = (s32 *)((byte *)memory->TransientStorage + 2 * sizeof(GameSoundAsset) + sizeof(GameSoundOutput));
 
 	if (!memory->isInitialized)
 	{
 		gameState->colorOffsetX = 0;
 		gameState->colorOffsetY = 0;
 
-		//TODO: All sound playing by "DebugReadFile" is temporary!
+		//TODO: All sound loading by "DebugReadFile" is temporary!
 		auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
-		soundToPlayBuffer->data = rawFileData;
-		soundToPlayBuffer->size = rawFileSize;
+		soundOutput->buffer[Menu1].data = rawFileData;
+		soundOutput->buffer[Menu1].size = rawFileSize;
 
 		auto &&[otherFileData, otherFileSize] = Win32::DebugReadFile("D:/laser_1.wav");
-		soundToPlayBuffer[1].data = otherFileData;
-		soundToPlayBuffer[1].size = otherFileSize;
+		soundOutput->buffer[LaserBullet].data = otherFileData;
+		soundOutput->buffer[LaserBullet].size = otherFileSize;
 
-		sounds->areNewSoundAssetsAdded = true;
-		sounds->maxSoundSources = 2;
-		sounds->buffer = soundToPlayBuffer;
-		sounds->playCounts = soundsToPlay;
+		soundOutput->maxSoundAssets = 2;
+		soundOutput->areNewSoundAssetsAdded = true;
+		//TODO: Test only
+		++soundOutput->soundsPlayingCounts[Menu1];
+		++soundOutput->soundsPlayingCounts[LaserBullet];
 
-		++sounds->playCounts[0];
-		++sounds->playCounts[1];
 
 		memory->isInitialized = true;
 	}
 
-	sounds->maxSoundSources = 2;
-	sounds->buffer = soundToPlayBuffer;
-	sounds->playCounts = soundsToPlay;
+	gameSendSoundsToPlay(sounds, soundOutput);
+	gameRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
 
-	testRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
+	soundOutput->areNewSoundAssetsAdded = false;
 }

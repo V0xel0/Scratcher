@@ -22,17 +22,19 @@ struct GameInputMouse
 
 };
 
-struct GameSound
+struct GameSoundAsset
 {
 	void *data;
 	u64 size;
 };
-struct GameOutputSound
+
+//? Cause of XAudio2 design, game is providing memory, this breaks base architecture style for audio but...
+struct GameSoundOutput
 {
-	s32 maxSoundSources;
+	s32 maxSoundAssets;
 	b32 areNewSoundAssetsAdded;
-	s32 *playCounts;
-	GameSound *buffer;
+	s32 *soundsPlayingCounts;
+	GameSoundAsset *buffer;
 };
 
 struct GameKeyState
@@ -62,4 +64,4 @@ struct GameState
 	s32 colorOffsetY;
 };
 
-void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameOutputSound *sounds);
+void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds);

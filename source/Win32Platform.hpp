@@ -1,6 +1,6 @@
 #pragma once
 // Windows 10
-#define _WIN32_WINNT 0x0A00 
+#define _WIN32_WINNT 0x0A00
 // Use the C++ standard templated min/max
 #define NOMINMAX
 // Include <mcx.h> if you need this
@@ -47,123 +47,7 @@ namespace Win32
 		s32 lastDy;
 	};
 
-	#if GAME_INTERNAL
-	internal auto DebugReadFile(char *fileName)
-	{
-		struct Output
-		{
-			void *data;
-			u32 dataSize;
-		}out;
-		
-		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-		auto d = deferFunction([&] { CloseHandle(fileHandle); });
-
-		if(fileHandle != INVALID_HANDLE_VALUE)
-		{
-			LARGE_INTEGER fileSize;
-			
-			if(GetFileSizeEx(fileHandle, &fileSize))
-			{
-				u32 fileSize32 = truncU64toU32(fileSize.QuadPart);
-				out.data = VirtualAlloc(0, fileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-
-				if(out.data)
-				{
-					DWORD bytesRead;
-					if(ReadFile(fileHandle, out.data, fileSize32, &bytesRead, 0) && (fileSize32 == bytesRead))
-					{
-						out.dataSize = fileSize32;
-					}
-					else
-					{                    
-						VirtualFree(out.data, 0, MEM_RELEASE);
-						out.data = nullptr;
-						//TODO: Log
-					}
-				}
-			}
-		}
-		else
-		{
-			//TODO: Log
-		}
-		
-		return(out);
-	}
-
-	internal b32 DebugWriteFile(char *fileName, void *memory, u32 memSize)
-	{
-		b32 isSuccessful = false;
-		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-		auto d = deferFunction([&] {CloseHandle(fileHandle);});
-
-		if (fileHandle != INVALID_HANDLE_VALUE)
-		{
-			DWORD bytesWritten;
-			if(WriteFile(fileHandle, memory, memSize, &bytesWritten, 0))
-			{
-				isSuccessful = (bytesWritten == memSize);
-			}
-			else
-			{
-				//TODO: Log
-			}
-		}
-		else
-		{
-			//TODO: Log
-		}
-		
-		return isSuccessful;
-	}
-	#endif
-
-	internal auto parseWaveData(void *wavMemory) 
-	{
-		if (wavMemory == nullptr)
-			//TODO: Log/Error
-			GameAssert(0);
-
-		byte *seek = (byte *)wavMemory;
-		u32 riffString = *(u32 *)seek;
-		u32 waveString = *(u32 *)(seek + 8);
-
-		struct Output
-		{
-			WAVEFORMATEXTENSIBLE *wfx;
-			byte *data;
-			u32 dataSize;
-		} out;
-
-		if (riffString == 'FFIR' && waveString == 'EVAW')
-		{
-			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
-			u32 smallOffset = sizeof(u16);
-			u32 bigOffset = smallOffset * 4;
-
-			while (*(u32 *)seek != ' tmf')
-				seek += smallOffset;
-
-			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset);
-			u32 fmtSize = *((u32 *)seek + 1);
-			seek += fmtSize;
-
-			while (*(u32 *)seek != 'atad')
-				seek += smallOffset;
-
-			out.data = (seek + bigOffset);
-			out.dataSize = *((u32 *)seek + 1);
-		}
-		else
-		{
-			//TODO: Log/Error
-			GameAssert(0 && "Not a .wav file!");
-		}
-		return out;
-	}
-
-	//====================================INTERNAL GLOBALS===============================================================================
+	// ====================================INTERNAL GLOBALS===============================================================================
 	// Internal globals are never exposed to application layer directly, they are mostly data that
 	// needs to be shared with window CALLBACK function in Windows
 
@@ -174,7 +58,7 @@ namespace Win32
 	constexpr global_variable s32 bytesPerPixel = 4;
 	global_variable ScreenBuffer internalBuffer = {};
 
-	//=================================================================================================================================
+	// =================================================================================================================================
 
 	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
 	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
@@ -440,7 +324,7 @@ namespace Win32
 		return mainWindow;
 	}
 
-//===============================================XINPUT IMPLEMENTATIONS========================================================
+// ===============================================XINPUT IMPLEMENTATIONS========================================================
 
 // Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
 
@@ -484,7 +368,7 @@ namespace Win32
 		}
 	}
 
-	//=============================================MOUSE RAW INPUT===========================================================
+// ===============================================MOUSE RAW INPUT===========================================================
 
 	internal void RegisterMouseForRawInput(HWND window = nullptr)
 	{
@@ -503,6 +387,121 @@ namespace Win32
 		}
 	}
 
-	//=============================================XAUDIO 2===========================================================.
-	
+// ==============================================================================================================================
+
+#if GAME_INTERNAL
+	internal auto DebugReadFile(char *fileName)
+	{
+		struct Output
+		{
+			void *data;
+			u32 dataSize;
+		} out;
+
+		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+		auto d = deferFunction([&] { CloseHandle(fileHandle); });
+
+		if (fileHandle != INVALID_HANDLE_VALUE)
+		{
+			LARGE_INTEGER fileSize;
+
+			if (GetFileSizeEx(fileHandle, &fileSize))
+			{
+				u32 fileSize32 = truncU64toU32(fileSize.QuadPart);
+				out.data = VirtualAlloc(0, fileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+				if (out.data)
+				{
+					DWORD bytesRead;
+					if (ReadFile(fileHandle, out.data, fileSize32, &bytesRead, 0) && (fileSize32 == bytesRead))
+					{
+						out.dataSize = fileSize32;
+					}
+					else
+					{
+						VirtualFree(out.data, 0, MEM_RELEASE);
+						out.data = nullptr;
+						//TODO: Log
+					}
+				}
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+
+		return (out);
+	}
+
+	internal b32 DebugWriteFile(char *fileName, void *memory, u32 memSize)
+	{
+		b32 isSuccessful = false;
+		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+		auto d = deferFunction([&] { CloseHandle(fileHandle); });
+
+		if (fileHandle != INVALID_HANDLE_VALUE)
+		{
+			DWORD bytesWritten;
+			if (WriteFile(fileHandle, memory, memSize, &bytesWritten, 0))
+			{
+				isSuccessful = (bytesWritten == memSize);
+			}
+			else
+			{
+				//TODO: Log
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+
+		return isSuccessful;
+	}
+#endif
+
+	internal auto parseWaveData(void *wavMemory)
+	{
+		if (wavMemory == nullptr)
+			//TODO: Log/Error
+			GameAssert(0);
+
+		byte *seek = (byte *)wavMemory;
+		u32 riffString = *(u32 *)seek;
+		u32 waveString = *(u32 *)(seek + 8);
+
+		struct Output
+		{
+			WAVEFORMATEXTENSIBLE *wfx;
+			byte *data;
+			u32 dataSize;
+		} out;
+
+		if (riffString == 'FFIR' && waveString == 'EVAW')
+		{
+			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
+			u32 smallOffset = sizeof(u16);
+			u32 bigOffset = smallOffset * 4;
+
+			while (*(u32 *)seek != ' tmf')
+				seek += smallOffset;
+
+			out.wfx = (WAVEFORMATEXTENSIBLE *)(seek + bigOffset);
+			u32 fmtSize = *((u32 *)seek + 1);
+			seek += fmtSize;
+
+			while (*(u32 *)seek != 'atad')
+				seek += smallOffset;
+
+			out.data = (seek + bigOffset);
+			out.dataSize = *((u32 *)seek + 1);
+		}
+		else
+		{
+			//TODO: Log/Error
+			GameAssert(0 && "Not a .wav file!");
+		}
+		return out;
+	}
 }

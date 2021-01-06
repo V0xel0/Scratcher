@@ -144,12 +144,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		gameBuffer.pitch = Win32::internalBuffer.pitch;
 		gameBuffer.memory = Win32::internalBuffer.memory;
 
-		GameOutputSound gameSoundBuffer = {};
+		GameSoundOutput gameSoundBuffer = {};
 
 		// Update
 		gameFullUpdate(&gameMemory, &gameBuffer, &gameSoundBuffer);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
+		//TODO: NOT FINAL AUDIO SYSTEM!
+		//? Main assumption(case) is that audio assets are not changed often and iterate all possible IDs (same as array index)
 		if (gameSoundBuffer.areNewSoundAssetsAdded)
 		{
 			//? Hacky way to check if we replacing existing data
@@ -164,7 +166,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				}
 			}
 
-			for (int i = 0; i < gameSoundBuffer.maxSoundSources; ++i)
+			for (int i = 0; i < gameSoundBuffer.maxSoundAssets; ++i)
 			{
 				auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(gameSoundBuffer.buffer[i].data);
 
@@ -182,10 +184,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 		}
 
-		for (int p = 0; p < gameSoundBuffer.maxSoundSources; ++p)
+		for (int p = 0; p < gameSoundBuffer.maxSoundAssets; ++p)
 		{
 			bool hack = true;
-			for (int s = 0; s < gameSoundBuffer.playCounts[p]; ++s)
+			for (int s = 0; s < gameSoundBuffer.soundsPlayingCounts[p]; ++s)
 			{
 				//TODO: Check if it is possible to skip "CreateSourceVoice" - do it only once
 				if (hack)
@@ -200,7 +202,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				hr = sourceVoices[nextFreeVoiceID]->Start();
 				GameAssert((HRESULT)hr >= 0);
 
-				gameSoundBuffer.playCounts[p] = gameSoundBuffer.playCounts[p] > 0 ? --gameSoundBuffer.playCounts[p] : 0;
+				gameSoundBuffer.soundsPlayingCounts[p] = gameSoundBuffer.soundsPlayingCounts[p] > 0 ? --gameSoundBuffer.soundsPlayingCounts[p] : 0;
 				nextFreeVoiceID = (nextFreeVoiceID + 1) % maxActiveSounds;
 			}
 		}
