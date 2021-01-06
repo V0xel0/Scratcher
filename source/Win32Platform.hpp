@@ -46,6 +46,11 @@ namespace Win32
 		s32 lastDx;
 		s32 lastDy;
 	};
+	struct XAudioCustomBuffer
+	{
+		XAUDIO2_BUFFER buffer;
+		WAVEFORMATEXTENSIBLE *wfx;
+	};
 
 	// ====================================INTERNAL GLOBALS===============================================================================
 	// Internal globals are never exposed to application layer directly, they are mostly data that

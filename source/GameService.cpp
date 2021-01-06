@@ -53,7 +53,8 @@ internal void gameSendSoundsToPlay(GameSoundOutput *platform, GameSoundOutput *g
 	platform->areNewSoundAssetsAdded = gameOut->areNewSoundAssetsAdded;
 	platform->buffer = gameOut->buffer;
 	platform->maxSoundAssets = gameOut->maxSoundAssets;
-	platform->soundsPlayingCounts = gameOut->soundsPlayingCounts;
+	platform->soundsPlayInfos = gameOut->soundsPlayInfos;
+	platform->masterVolume = gameOut->masterVolume;
 }
 
 void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds)
@@ -62,7 +63,7 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 
 	GameSoundOutput *soundOutput = (GameSoundOutput *)memory->TransientStorage;
 	soundOutput->buffer = (GameSoundAsset *)((byte *)memory->TransientStorage + sizeof(GameSoundOutput));
-	soundOutput->soundsPlayingCounts = (s32 *)((byte *)memory->TransientStorage + 2 * sizeof(GameSoundAsset) + sizeof(GameSoundOutput));
+	soundOutput->soundsPlayInfos = (GameSoundPlayInfo *)((byte *)memory->TransientStorage + 2 * sizeof(GameSoundAsset) + sizeof(GameSoundOutput));
 
 	if (!memory->isInitialized)
 	{
@@ -81,9 +82,11 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 		soundOutput->maxSoundAssets = 2;
 		soundOutput->areNewSoundAssetsAdded = true;
 		//TODO: Test only
-		++soundOutput->soundsPlayingCounts[Menu1];
-		++soundOutput->soundsPlayingCounts[LaserBullet];
-
+		++soundOutput->soundsPlayInfos[Menu1].count;
+		soundOutput->soundsPlayInfos[Menu1].isRepeating = true;
+		++soundOutput->soundsPlayInfos[LaserBullet].count;
+		soundOutput->soundsPlayInfos[LaserBullet].isRepeating = false;
+		soundOutput->masterVolume = 0.75f;
 
 		memory->isInitialized = true;
 	}

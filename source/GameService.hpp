@@ -28,12 +28,20 @@ struct GameSoundAsset
 	u64 size;
 };
 
+struct GameSoundPlayInfo
+{
+	s16 count;
+	b16 isRepeating;
+};
+
 //? Cause of XAudio2 design, game is providing memory, this breaks base architecture style for audio but...
 struct GameSoundOutput
 {
 	s32 maxSoundAssets;
 	b32 areNewSoundAssetsAdded;
-	s32 *soundsPlayingCounts;
+	f32 masterVolume;
+
+	GameSoundPlayInfo *soundsPlayInfos;
 	GameSoundAsset *buffer;
 };
 
