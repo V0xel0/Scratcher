@@ -52,7 +52,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	IXAudio2MasteringVoice *pMasterVoice = nullptr;
 	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
 	GameAssert((HRESULT)hr >= 0);
-	
 
 	//TODO: Consider passing it to game?
 	constexpr s32 maxAudioSources = 64;
@@ -135,8 +134,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		// Fill game services
 		GameScreenBuffer gameBuffer = {};
 		gameBuffer.height = Win32::internalBuffer.height;
-		gameBuffer.width  = Win32::internalBuffer.width;
-		gameBuffer.pitch  = Win32::internalBuffer.pitch;
+		gameBuffer.width = Win32::internalBuffer.width;
+		gameBuffer.pitch = Win32::internalBuffer.pitch;
 		gameBuffer.memory = Win32::internalBuffer.memory;
 
 		GameSoundOutput gameSoundBuffer = {};
@@ -198,8 +197,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				hr = sourceVoices[nextFreeVoiceID]->Start();
 				GameAssert((HRESULT)hr >= 0);
 
-				gameSoundBuffer.soundsPlayInfos[p].count = gameSoundBuffer.soundsPlayInfos[p].count > 0 ? 
-				--gameSoundBuffer.soundsPlayInfos[p].count : 0;
+				gameSoundBuffer.soundsPlayInfos[p].count = gameSoundBuffer.soundsPlayInfos[p].count > 0 ? --gameSoundBuffer.soundsPlayInfos[p].count : 0;
 				nextFreeVoiceID = (nextFreeVoiceID + 1) % maxActiveSounds;
 			}
 		}
