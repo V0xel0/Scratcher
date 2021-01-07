@@ -39,12 +39,16 @@ namespace Win32
 		s32 height;
 	};
 
-	struct MouseDataRaw
+	struct InputMouse
 	{
 		s32 x;
 		s32 y;
 		s32 lastDx;
 		s32 lastDy;
+	};
+
+	struct InputKeyboard
+	{
 	};
 	struct XAudioCustomBuffer
 	{
@@ -56,7 +60,7 @@ namespace Win32
 	// Internal globals are never exposed to application layer directly, they are mostly data that
 	// needs to be shared with window CALLBACK function in Windows
 
-	global_variable MouseDataRaw mouseData;
+	global_variable b32 isMainRunning = true;
 	global_variable LARGE_INTEGER clockFrequency;
 
 	// One 4 bytes per pixel buffer with one not shared device context is assumed
@@ -122,6 +126,45 @@ namespace Win32
 
 		switch (message)
 		{
+		// Used to repaint area and update it when windows send this message
+		case WM_PAINT:
+		{
+			PAINTSTRUCT Paint = {};
+			HDC deviceCtx = BeginPaint(window, &Paint);
+			Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
+			EndPaint(window, &Paint);
+		}
+		break;
+
+		case WM_MENUCHAR:
+		{
+			output = MAKELRESULT(0, MNC_CLOSE);
+		}
+		break;
+
+		case WM_DESTROY:
+		{
+			OutputDebugStringA("Window Destroyed\n");
+			PostQuitMessage(0);
+		}
+		break;
+
+		default:
+		{
+			output = DefWindowProc(window, message, wParam, lParam);
+		}
+		break;
+		}
+		return (output);
+	}
+
+	internal void processInputMessages(MSG *msg, InputKeyboard *key, InputMouse *mouse)
+	{
+		LPARAM lParam = msg->lParam;
+		WPARAM wParam = msg->wParam;
+
+		switch (msg->message)
+		{
 		// Used for obtaining relative mouse movement without acceleration
 		case WM_INPUT:
 		{
@@ -151,8 +194,8 @@ namespace Win32
 			if (raw->header.dwType == RIM_TYPEMOUSE &&
 				(raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0))
 			{
-				mouseData.lastDx = raw->data.mouse.lLastX;
-				mouseData.lastDy = raw->data.mouse.lLastY;
+				mouse->lastDx = raw->data.mouse.lLastX;
+				mouse->lastDy = raw->data.mouse.lLastY;
 			}
 		}
 		break;
@@ -160,8 +203,8 @@ namespace Win32
 		// Only used to get x,y coordinates of cursor in client area of the window
 		case WM_MOUSEMOVE:
 		{
-			mouseData.x = LOWORD(lParam);
-			mouseData.y = HIWORD(lParam);
+			mouse->x = LOWORD(lParam);
+			mouse->y = HIWORD(lParam);
 		}
 		break;
 
@@ -195,7 +238,7 @@ namespace Win32
 		case WM_KEYDOWN:
 		case WM_KEYUP:
 		{
-			WPARAM vkCode = wParam;
+			u32 vkCode = (u32)wParam;
 			b32 wasDown = TestBit(lParam, 30) != 0;
 			b32 isDown = TestBit(lParam, 31) == 0;
 
@@ -244,40 +287,18 @@ namespace Win32
 				{
 				}
 			}
+			b32 altWasDown = TestBit(lParam, 29);
+			if((vkCode == VK_F4) && altWasDown)
+			{
+				Win32::isMainRunning = false;
+			}
 		}
-		break;
-
-		// Used to repaint area and update it when windows send this message
-		case WM_PAINT:
-		{
-			PAINTSTRUCT Paint = {};
-			HDC deviceCtx = BeginPaint(window, &Paint);
-			Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
-			EndPaint(window, &Paint);
-		}
-		break;
-
-		case WM_MENUCHAR:
-		{
-			output = MAKELRESULT(0, MNC_CLOSE);
-		}
-		break;
-
-		case WM_DESTROY:
-		{
-			OutputDebugStringA("Window Destroyed\n");
-			PostQuitMessage(0);
-		}
-		break;
-
 		default:
 		{
-			output = DefWindowProc(window, message, wParam, lParam);
+			break;
 		}
 		break;
 		}
-
-		return (output);
 	}
 
 	// Creates window for current process, cause of CS_OWNDC device context is assumed to not be shared with anyone
@@ -509,4 +530,4 @@ namespace Win32
 		}
 		return out;
 	}
-}
+} // namespace Win32

@@ -37,7 +37,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	Win32::RegisterMouseForRawInput();
 	QueryPerformanceFrequency(&Win32::clockFrequency);
 
-	b32 isRunning = true;
+	// Platform input data
+	Win32::InputKeyboard keyboardData = {};
+	Win32::InputMouse mouseData = {};
 
 	// Timer variables
 	LARGE_INTEGER startTime{};
@@ -79,19 +81,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
 	// Main Win32 platform loop
-	while (isRunning)
+	while (Win32::isMainRunning)
 	{
 		QueryPerformanceCounter(&startTime);
 		cycleStart = __rdtsc();
-
 		MSG msg = {};
+
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
+			processInputMessages(&msg, &keyboardData, &mouseData);
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);
 			if (msg.message == WM_QUIT)
 			{
-				isRunning = false;
+				Win32::isMainRunning = false;
 				break;
 			}
 		}

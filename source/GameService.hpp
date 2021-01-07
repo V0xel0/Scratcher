@@ -4,6 +4,13 @@
 // Architecture style inspired from "handmadehero" series - Game is treated as a service to OS, instead of
 // abstracting platform code and handling it as kind of "Virtual OS"
 
+enum class AnalogInputType
+{
+	Mouse,
+	GamePad,
+	CountOfTypes
+};
+
 struct GameScreenBuffer
 {
 	void *memory;
@@ -12,11 +19,7 @@ struct GameScreenBuffer
 	s32 pitch;
 };
 
-struct GameInputPad
-{
-};
-
-struct GameInputMouse
+struct GameAnalogData
 {
 };
 
@@ -32,7 +35,7 @@ struct GameSoundPlayInfo
 	b16 isRepeating;
 };
 
-//? Cause of XAudio2 design, game is providing memory, this breaks base architecture style for audio but...
+
 struct GameSoundOutput
 {
 	s32 maxSoundAssets;
@@ -49,8 +52,10 @@ struct GameKeyState
 	b32 wasDown;
 };
 
-struct GameInput
+struct GameController
 {
+	AnalogInputType analogType;
+
 };
 
 struct GameMemory
