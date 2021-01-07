@@ -2,8 +2,8 @@
 
 #include "GameAssertions.hpp"
 #include "Utils.hpp"
-#include "Win32Platform.hpp"
 #include "GameService.hpp"
+#include "Win32Platform.hpp"
 
 #if UNITY_BUILD
 #include "GameService.cpp"
@@ -37,15 +37,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	Win32::RegisterMouseForRawInput();
 	QueryPerformanceFrequency(&Win32::clockFrequency);
 
-	// Platform input data
-	Win32::InputKeyboard keyboardData = {};
-	Win32::InputMouse mouseData = {};
-
 	// Timer variables
 	LARGE_INTEGER startTime{};
 	u64 cycleStart = 0, cycleEnd = 0;
 
-	// Audio stuff
+	// Creation of Buffer for previous and current controllers state
+	GameInput gameInputBuffer[2] = {};
+	GameInput *newInput = &gameInputBuffer[0];
+	GameInput *oldInput = &gameInputBuffer[1];
+
+	// Audio init
 	CoInitializeEx(NULL, COINIT_MULTITHREADED);
 	ATL::CComPtr<IXAudio2> XAudio2;
 	HRESULT hr;
@@ -55,7 +56,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
 	GameAssert((HRESULT)hr >= 0);
 
-	//TODO: Consider passing it to game?
+	//TODO: Consider informing game about limits or adjust platform to game
 	constexpr s32 maxAudioSources = 64;
 	constexpr s32 maxActiveSounds = 64;
 	s32 nextFreeVoiceID = 0;
@@ -87,9 +88,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		cycleStart = __rdtsc();
 		MSG msg = {};
 
+		//TODO: More explicitly indicate controllers IDs
+		// Handling of Keyboard + mouse controller
+		GameController *oldKeyboardMouseController = getGameController(oldInput, 0);
+		GameController *newKeyboardMouseController = getGameController(newInput, 0);
+		*newKeyboardMouseController = {};
+		newKeyboardMouseController->isConnected = true;
+		for(s32 i = 0; i < ArrayCount32(newKeyboardMouseController->buttons); ++i)
+		{
+			newKeyboardMouseController->buttons[i].wasDown = oldKeyboardMouseController->buttons[i].wasDown;
+		}
+
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			processInputMessages(&msg, &keyboardData, &mouseData);
+			Win32::processKeyboardMouseMsgs(&msg, newKeyboardMouseController);
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);
 			if (msg.message == WM_QUIT)
@@ -98,14 +110,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				break;
 			}
 		}
-#if 0
+
 		//=============================================XINPUT============================================================
 		//TODO: Handle deadzone
 		for (DWORD gamePadID = 0; gamePadID < XUSER_MAX_COUNT; gamePadID++)
 		{
 			XINPUT_STATE gamePadState = {};
-			
-			if( Win32::XInputGetState(gamePadID, &gamePadState) == ERROR_SUCCESS )
+
+			if (Win32::XInputGetState(gamePadID, &gamePadState) == ERROR_SUCCESS)
 			{
 				XINPUT_GAMEPAD *gamePad = &gamePadState.Gamepad;
 
@@ -121,30 +133,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				b32 bButton = (gamePad->wButtons & XINPUT_GAMEPAD_B);
 				b32 xButton = (gamePad->wButtons & XINPUT_GAMEPAD_X);
 				b32 yButton = (gamePad->wButtons & XINPUT_GAMEPAD_Y);
-								
+
 				s16 triggerL = gamePad->sThumbLX;
 				s16 triggerR = gamePad->sThumbLY;
-
-				XOffset += triggerL >> 12;
-				YOffset -= triggerR >> 12;
 			}
 			else
 			{
 				// Controller is not connected
 			}
 		}
-#endif
+		
 		// Fill game services
-		GameScreenBuffer gameBuffer = {};
-		gameBuffer.height = Win32::internalBuffer.height;
-		gameBuffer.width = Win32::internalBuffer.width;
-		gameBuffer.pitch = Win32::internalBuffer.pitch;
-		gameBuffer.memory = Win32::internalBuffer.memory;
+		GameScreenBuffer gameScreenBuffer = {};
+		gameScreenBuffer.height = Win32::internalBuffer.height;
+		gameScreenBuffer.width = Win32::internalBuffer.width;
+		gameScreenBuffer.pitch = Win32::internalBuffer.pitch;
+		gameScreenBuffer.memory = Win32::internalBuffer.memory;
 
 		GameSoundOutput gameSoundBuffer = {};
 
 		// Update
-		gameFullUpdate(&gameMemory, &gameBuffer, &gameSoundBuffer);
+		gameFullUpdate(&gameMemory, &gameScreenBuffer, &gameSoundBuffer, gameInputBuffer);
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
 		//TODO: NOT FINAL AUDIO SYSTEM!
@@ -173,8 +182,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				xaudioCustomBuffers[i].buffer.LoopCount = gameSoundBuffer.soundsPlayInfos[i].isRepeating ? XAUDIO2_LOOP_INFINITE : 0;
 				xaudioCustomBuffers[i].wfx = wfx;
 			}
-			//? If same format, frequency, channels for all sound data
 
+			//? If same format, frequency, channels for all sound data
 			for (int j = 0; j < maxActiveSounds; ++j)
 			{
 				hr = XAudio2->CreateSourceVoice(&sourceVoices[j], (WAVEFORMATEX *)xaudioCustomBuffers[0].wfx);
@@ -211,10 +220,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		cycleEnd = __rdtsc();
 		u64 mcpf = (cycleStart - cycleEnd) / (1'000'000);
 
-		//TODO: Temporary for debug
+		valueSwap(oldInput, newInput);
+
+	#if 0
 		char tbuffer[32];
 		sprintf(tbuffer, "Ms: %lld\n", frameTimeMs);
 		OutputDebugStringA(tbuffer);
+	#endif
 	}
 	UnregisterClassA("Scratcher", GetModuleHandleA(nullptr)); // ? Do we need that?
 	CoUninitialize();

@@ -38,18 +38,6 @@ namespace Win32
 		s32 width;
 		s32 height;
 	};
-
-	struct InputMouse
-	{
-		s32 x;
-		s32 y;
-		s32 lastDx;
-		s32 lastDy;
-	};
-
-	struct InputKeyboard
-	{
-	};
 	struct XAudioCustomBuffer
 	{
 		XAUDIO2_BUFFER buffer;
@@ -158,7 +146,14 @@ namespace Win32
 		return (output);
 	}
 
-	internal void processInputMessages(MSG *msg, InputKeyboard *key, InputMouse *mouse)
+	internal void processKeyboardMouseEvent(GameKeyState *newState, b32 isDown)
+	{
+		GameAssert(newState->wasDown != isDown);
+		newState->wasDown = isDown;
+		++newState->halfTransCount;
+	}
+
+	internal void processKeyboardMouseMsgs(MSG *msg, GameController *keyboardMouse)
 	{
 		LPARAM lParam = msg->lParam;
 		WPARAM wParam = msg->wParam;
@@ -169,33 +164,21 @@ namespace Win32
 		case WM_INPUT:
 		{
 			u32 size = {};
-			//TODO: This should come from external (and fast! - no dynamic allocation) memory source rather than guess
-			constexpr u32 guessSize = 48; // seems like this is size for mouse
-			u8 data[guessSize];
-			RAWINPUT *raw = reinterpret_cast<RAWINPUT *>(data);
+			RAWINPUT raw[sizeof(RAWINPUT)];
 
-			// Cold call to get required size of the input data
-			GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER));
+			GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw, &size, sizeof(RAWINPUTHEADER));
 
-			//TODO: Remove it after proper memory handling for input data
-			if (size > guessSize)
+			if (raw->header.dwType == RIM_TYPEMOUSE)
 			{
-				MessageBoxA(NULL, "Too small raw input data guessed!", "error", 0);
-				break;
-			}
-			u32 copied = GetRawInputData((HRAWINPUT)lParam, RID_INPUT, data, &size, sizeof(RAWINPUTHEADER));
-			if (copied != size)
-			{
-				//TODO: Fail handling from GetRawInputData()
-				MessageBoxA(NULL, "Incorrect raw input data size!", "error", 0);
-				break;
-			}
-			// Only care about mouse delta
-			if (raw->header.dwType == RIM_TYPEMOUSE &&
-				(raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0))
-			{
-				mouse->lastDx = raw->data.mouse.lLastX;
-				mouse->lastDy = raw->data.mouse.lLastY;
+				if (raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0)
+				{
+					keyboardMouse->mouse.deltaX = raw->data.mouse.lLastX;
+					keyboardMouse->mouse.deltaY = raw->data.mouse.lLastY;
+				}
+				if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
+				{
+					keyboardMouse->mouse.deltaWheel = (*(s16 *)&raw->data.mouse.usButtonData);
+				}
 			}
 		}
 		break;
@@ -203,8 +186,8 @@ namespace Win32
 		// Only used to get x,y coordinates of cursor in client area of the window
 		case WM_MOUSEMOVE:
 		{
-			mouse->x = LOWORD(lParam);
-			mouse->y = HIWORD(lParam);
+			keyboardMouse->mouse.x = LOWORD(lParam);
+			keyboardMouse->mouse.y = HIWORD(lParam);
 		}
 		break;
 
@@ -241,54 +224,72 @@ namespace Win32
 			u32 vkCode = (u32)wParam;
 			b32 wasDown = TestBit(lParam, 30) != 0;
 			b32 isDown = TestBit(lParam, 31) == 0;
-
+			//TODO: Consider binding from file?
 			if (isDown != wasDown)
 			{
 				if (vkCode == 'W')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
 				}
 				else if (vkCode == 'S')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
 				}
 				else if (vkCode == 'A')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
 				}
 				else if (vkCode == 'D')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
 				}
 				else if (vkCode == 'Q')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->action1, isDown);
 				}
 				else if (vkCode == 'E')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->action2, isDown);
 				}
 				else if (vkCode == 'Z')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->action3, isDown);
 				}
 				else if (vkCode == 'X')
 				{
+					processKeyboardMouseEvent(&keyboardMouse->action4, isDown);
 				}
 				else if (vkCode == VK_ESCAPE)
 				{
+					processKeyboardMouseEvent(&keyboardMouse->back, isDown);
+				}
+				else if (vkCode == VK_RETURN)
+				{
+					processKeyboardMouseEvent(&keyboardMouse->start, isDown);
 				}
 				else if (vkCode == VK_SPACE)
 				{
+					processKeyboardMouseEvent(&keyboardMouse->actionFire, isDown);
 				}
 				else if (vkCode == VK_UP)
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
 				}
 				else if (vkCode == VK_DOWN)
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
 				}
 				else if (vkCode == VK_LEFT)
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
 				}
 				else if (vkCode == VK_RIGHT)
 				{
+					processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
 				}
 			}
 			b32 altWasDown = TestBit(lParam, 29);
-			if((vkCode == VK_F4) && altWasDown)
+			if ((vkCode == VK_F4) && altWasDown)
 			{
 				Win32::isMainRunning = false;
 			}
@@ -350,9 +351,16 @@ namespace Win32
 		return mainWindow;
 	}
 
-// ===============================================XINPUT IMPLEMENTATIONS========================================================
+// ===============================================XINPUT========================================================
 
 // Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
+
+internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *oldState, DWORD buttonBit,
+                                		GameKeyState *newState)
+{
+    newState->wasDown = ((xInputButtonState & buttonBit) == buttonBit);
+    newState->halfTransCount = (oldState->wasDown != newState->wasDown) ? 1 : 0;
+}
 
 // XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)

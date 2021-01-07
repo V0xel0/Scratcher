@@ -57,7 +57,7 @@ internal void gameSendSoundsToPlay(GameSoundOutput *platform, GameSoundOutput *g
 	platform->masterVolume = gameOut->masterVolume;
 }
 
-void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds)
+void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds, GameInput *inputs)
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
 
@@ -84,11 +84,41 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 		//TODO: Test only
 		++soundOutput->soundsPlayInfos[Menu1].count;
 		soundOutput->soundsPlayInfos[Menu1].isRepeating = true;
-		++soundOutput->soundsPlayInfos[LaserBullet].count;
 		soundOutput->soundsPlayInfos[LaserBullet].isRepeating = false;
-		soundOutput->masterVolume = 0.75f;
+		soundOutput->masterVolume = 0.1f;
 
 		memory->isInitialized = true;
+	}
+
+	for (s32 controllerID = 0; controllerID < ArrayCount32(inputs->controllers); ++controllerID)
+	{
+		GameController *controller = getGameController(inputs, controllerID);
+		if (controller->isGamePad)
+		{
+		}
+		else
+		{
+			if (controller->moveUp.wasDown && controller->moveUp.halfTransCount)
+			{
+				soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
+			}
+			if (controller->moveDown.wasDown && controller->moveDown.halfTransCount)
+			{
+				soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
+			}
+			if (controller->moveLeft.wasDown)
+			{
+				gameState->colorOffsetX -= 1;
+			}
+			if (controller->moveRight.wasDown)
+			{
+				gameState->colorOffsetX += 1;
+			}
+			if (controller->actionFire.wasDown && controller->actionFire.halfTransCount)
+			{
+				++soundOutput->soundsPlayInfos[LaserBullet].count;
+			}
+		}
 	}
 
 	gameSendSoundsToPlay(sounds, soundOutput);

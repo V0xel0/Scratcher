@@ -59,6 +59,58 @@ constexpr s64 ArrayCount64(const T (&array)[N]) noexcept
 	return N;
 }
 
+template <typename T, s32 N>
+constexpr s32 ArrayCount32(const T (&array)[N]) noexcept
+{
+	return N;
+}
+
+template<typename T>
+void valueSwap(T *a, T *b)
+{
+    T temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+template<typename T>
+void pointerSwap(T *a, T *b)
+{
+    T *temp = a;
+    a = b;
+    b = temp;
+}
+
+template<typename T>
+void bitSwap(T *a, T *b)
+{
+	a = a ^ b;
+	b = a ^ b;
+	a = a ^ b;
+}
+
+template <typename ...T>
+auto min(T&&... args)
+{
+	auto min = (args, ...);
+	((args < min ? min = args : 0), ...);
+    return min;
+}
+
+template <typename ...T>
+auto max(T&&... args)
+{
+	auto max = (args, ...);
+	((args > max ? max = args : 0), ...);
+    return max;
+}
+
+template <typename T>
+T clamp(T x, T low, T high)
+{
+	return min(max(low, x), high);
+}
+
 #define AlignAddressPow2(Value, Alignment) ((Value) + ((Alignment)-1)) & ~((Alignment)-1)
 #define AlignAddress4(Value) ((Value + 3) & ~3)
 #define AlignAddress8(Value) ((Value + 7) & ~7)
