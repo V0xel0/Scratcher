@@ -57,8 +57,8 @@ struct GameGamePadData
 
 struct GameController
 {
-	b32 isGamePad;
-	b32 isConnected;
+	b16 isGamePad;
+	b16 isConnected;
 	union
 	{
 		GameMouseData mouse;
@@ -95,7 +95,7 @@ struct GameController
 struct GameInput
 {
 	//TODO: Explicitly message number of players
-	GameController controllers[3];
+	GameController controllers[2];
 };
 
 inline GameController *getGameController(GameInput *input, u32 controllerID)

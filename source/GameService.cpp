@@ -93,31 +93,37 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 	for (s32 controllerID = 0; controllerID < ArrayCount32(inputs->controllers); ++controllerID)
 	{
 		GameController *controller = getGameController(inputs, controllerID);
+
+		// Analog input processing
 		if (controller->isGamePad)
 		{
+			gameState->colorOffsetX += (s32)(controller->gamePad.StickAverageX*4);
+			gameState->colorOffsetY -= (s32)(controller->gamePad.StickAverageY*4);
 		}
 		else
 		{
-			if (controller->moveUp.wasDown && controller->moveUp.halfTransCount)
-			{
-				soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
-			}
-			if (controller->moveDown.wasDown && controller->moveDown.halfTransCount)
-			{
-				soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
-			}
-			if (controller->moveLeft.wasDown)
-			{
-				gameState->colorOffsetX -= 1;
-			}
-			if (controller->moveRight.wasDown)
-			{
-				gameState->colorOffsetX += 1;
-			}
-			if (controller->actionFire.wasDown && controller->actionFire.halfTransCount)
-			{
-				++soundOutput->soundsPlayInfos[LaserBullet].count;
-			}
+		}
+		
+		// Digital input processing
+		if (controller->moveUp.wasDown && controller->moveUp.halfTransCount)
+		{
+			soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
+		}
+		if (controller->moveDown.wasDown && controller->moveDown.halfTransCount)
+		{
+			soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
+		}
+		if (controller->moveLeft.wasDown)
+		{
+			gameState->colorOffsetX -= 1;
+		}
+		if (controller->moveRight.wasDown)
+		{
+			gameState->colorOffsetX += 1;
+		}
+		if (controller->actionFire.wasDown && controller->actionFire.halfTransCount)
+		{
+			++soundOutput->soundsPlayInfos[LaserBullet].count;
 		}
 	}
 

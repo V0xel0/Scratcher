@@ -351,36 +351,50 @@ namespace Win32
 		return mainWindow;
 	}
 
-// ===============================================XINPUT========================================================
+	// ===============================================XINPUT========================================================
+	internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *oldState, DWORD buttonBit,
+											GameKeyState *newState)
+	{
+		newState->wasDown = ((xInputButtonState & buttonBit) == buttonBit);
+		newState->halfTransCount = (oldState->wasDown != newState->wasDown) ? 1 : 0;
+	}
 
-// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
+	internal f32 processXInputAnalogEvent(SHORT value, SHORT deadZoneThreshold)
+	{
+		f32 output = 0;
+		// Normalization of analog data
+		if (value < -deadZoneThreshold)
+		{
+			output = (f32)((value + deadZoneThreshold) / (32768.0f - deadZoneThreshold));
+		}
+		else if (value > deadZoneThreshold)
+		{
+			output = (f32)((value - deadZoneThreshold) / (32767.0f - deadZoneThreshold));
+		}
+		return output;
+	}
 
-internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *oldState, DWORD buttonBit,
-                                		GameKeyState *newState)
-{
-    newState->wasDown = ((xInputButtonState & buttonBit) == buttonBit);
-    newState->halfTransCount = (oldState->wasDown != newState->wasDown) ? 1 : 0;
-}
+	// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
 
-// XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
-#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
+	// XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
+	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 	typedef X_INPUT_GET_STATE(X_Input_Get_State);
 	X_INPUT_GET_STATE(XInputGetStateNotFound)
 	{
 		return ERROR_DEVICE_NOT_CONNECTED;
 	}
 	global_variable X_Input_Get_State *xInputGetStatePtr = XInputGetStateNotFound;
-#define XInputGetState xInputGetStatePtr
+	#define XInputGetState xInputGetStatePtr
 
-// XInputSetState defines
-#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
+	// XInputSetState defines
+	#define X_INPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION *pVibration)
 	typedef X_INPUT_SET_STATE(X_Input_Set_State);
 	X_INPUT_SET_STATE(XInputSetStateNotFound)
 	{
 		return ERROR_DEVICE_NOT_CONNECTED;
 	}
 	global_variable X_Input_Set_State *xInputSetStatePtr = XInputSetStateNotFound;
-#define XInputSetState xInputSetStatePtr
+	#define XInputSetState xInputSetStatePtr
 
 	// Used to load xinput dll, if not found then above function pointers will point to "...NotFound" implementation ( return 0 )
 	internal void LoadXInputLibrary()
@@ -500,7 +514,6 @@ internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *o
 		{
 			VirtualFree(memory, 0, MEM_RELEASE);
 		}
-		
 	}
 #endif
 
@@ -523,7 +536,7 @@ internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *o
 
 		if (riffString == 'FFIR' && waveString == 'EVAW')
 		{
-			//TODO: Loops are not safe idea but .wav can have anything between end of fmt and start of data
+			//TODO: Bulletproof loops in case of wrong/malicious wave data
 			u32 smallOffset = sizeof(u16);
 			u32 bigOffset = smallOffset * 4;
 
