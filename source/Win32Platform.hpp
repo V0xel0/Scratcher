@@ -493,6 +493,15 @@ internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *o
 
 		return isSuccessful;
 	}
+
+	internal void DebugFreeFileMemory(void *memory)
+	{
+		if (memory != nullptr)
+		{
+			VirtualFree(memory, 0, MEM_RELEASE);
+		}
+		
+	}
 #endif
 
 	internal auto parseWaveData(void *wavMemory)
