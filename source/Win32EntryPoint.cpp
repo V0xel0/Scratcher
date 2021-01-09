@@ -112,7 +112,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		}
 
 		//=============================================XINPUT============================================================
-		//TODO: Handle deadzone
 		s32 maxActiveGamePads = min((s32)XUSER_MAX_COUNT, ArrayCount32(newInput->controllers) - 1);
 		for (s32 gamePadID = 1; gamePadID <= maxActiveGamePads; gamePadID++)
 		{

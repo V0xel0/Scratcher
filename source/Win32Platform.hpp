@@ -362,7 +362,7 @@ namespace Win32
 	internal f32 processXInputAnalogEvent(SHORT value, SHORT deadZoneThreshold)
 	{
 		f32 output = 0;
-		// Normalization of analog data
+		// Normalization of analog data and deadzone handling
 		if (value < -deadZoneThreshold)
 		{
 			output = (f32)((value + deadZoneThreshold) / (32768.0f - deadZoneThreshold));
