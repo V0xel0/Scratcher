@@ -111,48 +111,48 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		}
 
 		//=============================================XINPUT============================================================
-		s32 maxActiveGamePads = min((s32)XUSER_MAX_COUNT, ArrayCount32(newInput->controllers) - 1);
-		for (s32 gamePadID = 1; gamePadID <= maxActiveGamePads; gamePadID++)
-		{
-			GameController *oldGamePadController = getGameController(oldInput, gamePadID);
-			GameController *newGamePadController = getGameController(newInput, gamePadID);
-			XINPUT_STATE gamePadState = {};
+		// s32 maxActiveGamePads = min((s32)XUSER_MAX_COUNT, ArrayCount32(newInput->controllers) - 1);
+		// for (s32 gamePadID = 1; gamePadID <= maxActiveGamePads; gamePadID++)
+		// {
+		// 	GameController *oldGamePadController = getGameController(oldInput, gamePadID);
+		// 	GameController *newGamePadController = getGameController(newInput, gamePadID);
+		// 	XINPUT_STATE gamePadState = {};
 
-			if (Win32::XInputGetState(gamePadID - 1, &gamePadState) == ERROR_SUCCESS)
-			{
-				newGamePadController->isConnected = true;
-				newGamePadController->isGamePad = true;
-				XINPUT_GAMEPAD *gamePad = &gamePadState.Gamepad;
+		// 	if (Win32::XInputGetState(gamePadID - 1, &gamePadState) == ERROR_SUCCESS)
+		// 	{
+		// 		newGamePadController->isConnected = true;
+		// 		newGamePadController->isGamePad = true;
+		// 		XINPUT_GAMEPAD *gamePad = &gamePadState.Gamepad;
 
-				newGamePadController->gamePad.StickAverageX = Win32::processXInputAnalogEvent(gamePad->sThumbLX,
-																							  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-				newGamePadController->gamePad.StickAverageY = Win32::processXInputAnalogEvent(gamePad->sThumbLY,
-																							  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+		// 		newGamePadController->gamePad.StickAverageX = Win32::processXInputAnalogEvent(gamePad->sThumbLX,
+		// 																					  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+		// 		newGamePadController->gamePad.StickAverageY = Win32::processXInputAnalogEvent(gamePad->sThumbLY,
+		// 																					  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
 
-				Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveUp,
-												 XINPUT_GAMEPAD_DPAD_UP, &newGamePadController->moveUp);
-				Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveDown,
-												 XINPUT_GAMEPAD_DPAD_DOWN, &newGamePadController->moveDown);
-				Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveLeft,
-												 XINPUT_GAMEPAD_DPAD_LEFT, &newGamePadController->moveLeft);
-				Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveRight,
-												 XINPUT_GAMEPAD_DPAD_RIGHT, &newGamePadController->moveRight);
-				Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->actionFire,
-												 XINPUT_GAMEPAD_B, &newGamePadController->actionFire);
+		// 		Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveUp,
+		// 										 XINPUT_GAMEPAD_DPAD_UP, &newGamePadController->moveUp);
+		// 		Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveDown,
+		// 										 XINPUT_GAMEPAD_DPAD_DOWN, &newGamePadController->moveDown);
+		// 		Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveLeft,
+		// 										 XINPUT_GAMEPAD_DPAD_LEFT, &newGamePadController->moveLeft);
+		// 		Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveRight,
+		// 										 XINPUT_GAMEPAD_DPAD_RIGHT, &newGamePadController->moveRight);
+		// 		Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->actionFire,
+		// 										 XINPUT_GAMEPAD_B, &newGamePadController->actionFire);
 
-				// b32 start = (gamePad->wButtons & XINPUT_GAMEPAD_START);
-				// b32 back = (gamePad->wButtons & XINPUT_GAMEPAD_BACK);
-				// b32 leftShoulder = (gamePad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
-				// b32 rightShoulder = (gamePad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
-				// b32 aButton = (gamePad->wButtons & XINPUT_GAMEPAD_A);
-				// b32 xButton = (gamePad->wButtons & XINPUT_GAMEPAD_X);
-				// b32 yButton = (gamePad->wButtons & XINPUT_GAMEPAD_Y);
-			}
-			else
-			{
-				newGamePadController->isConnected = false;
-			}
-		}
+		// 		// b32 start = (gamePad->wButtons & XINPUT_GAMEPAD_START);
+		// 		// b32 back = (gamePad->wButtons & XINPUT_GAMEPAD_BACK);
+		// 		// b32 leftShoulder = (gamePad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+		// 		// b32 rightShoulder = (gamePad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+		// 		// b32 aButton = (gamePad->wButtons & XINPUT_GAMEPAD_A);
+		// 		// b32 xButton = (gamePad->wButtons & XINPUT_GAMEPAD_X);
+		// 		// b32 yButton = (gamePad->wButtons & XINPUT_GAMEPAD_Y);
+		// 	}
+		// 	else
+		// 	{
+		// 		newGamePadController->isConnected = false;
+		// 	}
+		// }
 
 		// Fill game services
 		GameScreenBuffer gameScreenBuffer = {};
@@ -231,7 +231,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		cycleEnd = __rdtsc();
 		u64 mcpf = (cycleStart - cycleEnd) / (1'000'000);
 
-		swap(oldInput, newInput);
+		GameInput *Temp = newInput;
+		newInput = oldInput;
+		oldInput = Temp;
 #if 0
 		char tbuffer[32];
 		sprintf(tbuffer, "Ms: %lld\n", frameTimeMs);

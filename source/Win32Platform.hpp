@@ -145,9 +145,11 @@ namespace Win32
 
 	internal void processKeyboardMouseEvent(GameKeyState *newState, b32 isDown)
 	{
-		GameAssert(newState->wasDown != isDown);
-		newState->wasDown = isDown;
-		++newState->halfTransCount;
+		if(newState->wasDown != isDown)
+		{
+			newState->wasDown = isDown;
+			++newState->halfTransCount;
+		}
 	}
 
 	internal void processKeyboardMouseMsgs(MSG *msg, GameController *keyboardMouse)
@@ -157,145 +159,145 @@ namespace Win32
 
 		switch (msg->message)
 		{
-		// Used for obtaining relative mouse movement without acceleration
-		case WM_INPUT:
-		{
-			u32 size = {};
-			RAWINPUT raw[sizeof(RAWINPUT)];
-
-			GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw, &size, sizeof(RAWINPUTHEADER));
-
-			if (raw->header.dwType == RIM_TYPEMOUSE)
+			// Used for obtaining relative mouse movement without acceleration
+			case WM_INPUT:
 			{
-				if (raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0)
+				u32 size = {};
+				RAWINPUT raw[sizeof(RAWINPUT)];
+
+				GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw, &size, sizeof(RAWINPUTHEADER));
+
+				if (raw->header.dwType == RIM_TYPEMOUSE)
 				{
-					keyboardMouse->mouse.deltaX = raw->data.mouse.lLastX;
-					keyboardMouse->mouse.deltaY = raw->data.mouse.lLastY;
-				}
-				if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
-				{
-					keyboardMouse->mouse.deltaWheel = (*(s16 *)&raw->data.mouse.usButtonData);
+					if (raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0)
+					{
+						keyboardMouse->mouse.deltaX = raw->data.mouse.lLastX;
+						keyboardMouse->mouse.deltaY = raw->data.mouse.lLastY;
+					}
+					if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
+					{
+						keyboardMouse->mouse.deltaWheel = (*(s16 *)&raw->data.mouse.usButtonData);
+					}
 				}
 			}
-		}
-		break;
-
-		// Only used to get x,y coordinates of cursor in client area of the window
-		case WM_MOUSEMOVE:
-		{
-			keyboardMouse->mouse.x = LOWORD(lParam);
-			keyboardMouse->mouse.y = HIWORD(lParam);
-		}
-		break;
-
-		// LMB RMB MMB down messages
-		case WM_LBUTTONDOWN:
-		case WM_MBUTTONDOWN:
-		case WM_RBUTTONDOWN:
-		{
-		}
-		break;
-
-		// LMB RMB MMB up messages
-		case WM_LBUTTONUP:
-		case WM_MBUTTONUP:
-		case WM_RBUTTONUP:
-		{
-		}
-		break;
-
-		// LMB RMB MMB double click messages
-		case WM_LBUTTONDBLCLK:
-		case WM_MBUTTONDBLCLK:
-		case WM_RBUTTONDBLCLK:
-		{
-		}
-		break;
-
-		// Keyboard input messages
-		case WM_SYSKEYDOWN:
-		case WM_SYSKEYUP:
-		case WM_KEYDOWN:
-		case WM_KEYUP:
-		{
-			u32 vkCode = (u32)wParam;
-			b32 wasDown = TestBit(lParam, 30) != 0;
-			b32 isDown = TestBit(lParam, 31) == 0;
-			//TODO: Consider binding from file?
-			if (isDown != wasDown)
-			{
-				if (vkCode == 'W')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
-				}
-				else if (vkCode == 'S')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
-				}
-				else if (vkCode == 'A')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
-				}
-				else if (vkCode == 'D')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
-				}
-				else if (vkCode == 'Q')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->action1, isDown);
-				}
-				else if (vkCode == 'E')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->action2, isDown);
-				}
-				else if (vkCode == 'Z')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->action3, isDown);
-				}
-				else if (vkCode == 'X')
-				{
-					processKeyboardMouseEvent(&keyboardMouse->action4, isDown);
-				}
-				else if (vkCode == VK_ESCAPE)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->back, isDown);
-				}
-				else if (vkCode == VK_RETURN)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->start, isDown);
-				}
-				else if (vkCode == VK_SPACE)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->actionFire, isDown);
-				}
-				else if (vkCode == VK_UP)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
-				}
-				else if (vkCode == VK_DOWN)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
-				}
-				else if (vkCode == VK_LEFT)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
-				}
-				else if (vkCode == VK_RIGHT)
-				{
-					processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
-				}
-			}
-			b32 altWasDown = TestBit(lParam, 29);
-			if ((vkCode == VK_F4) && altWasDown)
-			{
-				Win32::isMainRunning = false;
-			}
-		}
-		default:
-		{
 			break;
-		}
-		break;
+
+			// Only used to get x,y coordinates of cursor in client area of the window
+			case WM_MOUSEMOVE:
+			{
+				keyboardMouse->mouse.x = LOWORD(lParam);
+				keyboardMouse->mouse.y = HIWORD(lParam);
+			}
+			break;
+
+			// LMB RMB MMB down messages
+			case WM_LBUTTONDOWN:
+			case WM_MBUTTONDOWN:
+			case WM_RBUTTONDOWN:
+			{
+			}
+			break;
+
+			// LMB RMB MMB up messages
+			case WM_LBUTTONUP:
+			case WM_MBUTTONUP:
+			case WM_RBUTTONUP:
+			{
+			}
+			break;
+
+			// LMB RMB MMB double click messages
+			case WM_LBUTTONDBLCLK:
+			case WM_MBUTTONDBLCLK:
+			case WM_RBUTTONDBLCLK:
+			{
+			}
+			break;
+
+			// Keyboard input messages
+			case WM_SYSKEYDOWN:
+			case WM_SYSKEYUP:
+			case WM_KEYDOWN:
+			case WM_KEYUP:
+			{
+				u32 vkCode = (u32)wParam;
+				b32 wasDown = TestBit(lParam, 30) != 0;
+				b32 isDown = TestBit(lParam, 31) == 0;
+				//TODO: Consider binding from file?
+				if (wasDown != isDown)
+				{
+					if (vkCode == 'W')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
+					}
+					else if (vkCode == 'S')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
+					}
+					else if (vkCode == 'A')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
+					}
+					else if (vkCode == 'D')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
+					}
+					else if (vkCode == 'Q')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->action1, isDown);
+					}
+					else if (vkCode == 'E')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->action2, isDown);
+					}
+					else if (vkCode == 'Z')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->action3, isDown);
+					}
+					else if (vkCode == 'X')
+					{
+						processKeyboardMouseEvent(&keyboardMouse->action4, isDown);
+					}
+					else if (vkCode == VK_ESCAPE)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->back, isDown);
+					}
+					else if (vkCode == VK_RETURN)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->start, isDown);
+					}
+					else if (vkCode == VK_SPACE)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->actionFire, isDown);
+					}
+					else if (vkCode == VK_UP)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
+					}
+					else if (vkCode == VK_DOWN)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
+					}
+					else if (vkCode == VK_LEFT)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
+					}
+					else if (vkCode == VK_RIGHT)
+					{
+						processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
+					}
+				}
+				b32 altWasDown = TestBit(lParam, 29);
+				if ((vkCode == VK_F4) && altWasDown)
+				{
+					Win32::isMainRunning = false;
+				}
+				break;
+			}
+			default:
+			{
+			}
+			break;
 		}
 	}
 
