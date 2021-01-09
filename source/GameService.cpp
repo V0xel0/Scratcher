@@ -121,7 +121,7 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 		{
 			gameState->colorOffsetX += 100;
 		}
-		if (controller->actionFire.wasDown && controller->actionFire.halfTransCount > 0)
+		if (controller->actionFire.wasDown && controller->actionFire.halfTransCount)
 		{
 			++soundOutput->soundsPlayInfos[LaserBullet].count;
 		}

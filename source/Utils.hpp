@@ -82,6 +82,14 @@ void pointerSwap(T **a, T **b)
 }
 
 template<typename T>
+void valueSwap(T *a, T *b)
+{
+    T temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+template<typename T>
 void bitSwap(T *a, T *b)
 {
 	a = a ^ b;
