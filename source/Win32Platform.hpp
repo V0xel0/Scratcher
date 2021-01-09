@@ -11,10 +11,7 @@
 #define NOHELP
 #define WIN32_LEAN_AND_MEAN
 
-#include <WinSDKVer.h>
-#include <SDKDDKVer.h>
 #include <windows.h>
-#include <atlbase.h>
 #include <Xinput.h>
 #include <xaudio2.h>
 

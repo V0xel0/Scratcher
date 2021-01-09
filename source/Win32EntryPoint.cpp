@@ -47,8 +47,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GameInput *oldInput = &gameInputBuffer[1];
 
 	// Audio init
-	CoInitializeEx(NULL, COINIT_MULTITHREADED);
-	ATL::CComPtr<IXAudio2> XAudio2;
+	IXAudio2 *XAudio2;
 	HRESULT hr;
 	hr = XAudio2Create(&XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
 	GameAssert((HRESULT)hr >= 0);
@@ -232,8 +231,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		cycleEnd = __rdtsc();
 		u64 mcpf = (cycleStart - cycleEnd) / (1'000'000);
 
-		valueSwap(oldInput, newInput);
-
+		swap(oldInput, newInput);
 #if 0
 		char tbuffer[32];
 		sprintf(tbuffer, "Ms: %lld\n", frameTimeMs);
@@ -241,5 +239,5 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #endif
 	}
 	UnregisterClassA("Scratcher", GetModuleHandleA(nullptr)); // ? Do we need that?
-	CoUninitialize();
+	XAudio2->Release();
 }

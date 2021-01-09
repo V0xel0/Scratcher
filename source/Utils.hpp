@@ -65,20 +65,20 @@ constexpr s32 ArrayCount32(const T (&array)[N]) noexcept
 	return N;
 }
 
-template<typename T>
-void valueSwap(T *a, T *b)
+template <typename T>
+void swap(T &a, T &b)
 {
-    T temp = *a;
-    *a = *b;
-    *b = temp;
+    T temp(static_cast<T&&>(a));
+    a = static_cast<T&&>(b);
+    b = static_cast<T&&>(temp);
 }
 
 template<typename T>
-void pointerSwap(T *a, T *b)
+void pointerSwap(T **a, T **b)
 {
-    T *temp = a;
-    a = b;
-    b = temp;
+    T *temp = *a;
+    *a = *b;
+    *b = temp;
 }
 
 template<typename T>
