@@ -220,7 +220,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				hr = sourceVoices[nextFreeVoiceID]->Start();
 				GameAssert((HRESULT)hr >= 0);
 
-				gameSoundBuffer.soundsPlayInfos[p].count = gameSoundBuffer.soundsPlayInfos[p].count > 0 ? --gameSoundBuffer.soundsPlayInfos[p].count : 0;
+				gameSoundBuffer.soundsPlayInfos[p].count = gameSoundBuffer.soundsPlayInfos[p].count > 0 ? 
+																--gameSoundBuffer.soundsPlayInfos[p].count : 0;
 				nextFreeVoiceID = (nextFreeVoiceID + 1) % maxActiveSounds;
 			}
 		}

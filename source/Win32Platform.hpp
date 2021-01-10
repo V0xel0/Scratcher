@@ -1,11 +1,10 @@
 #pragma once
 // Windows 10
 #define _WIN32_WINNT 0x0A00
-// Use the C++ standard templated min/max
 #define NOMINMAX
-// Include <mcx.h> if you need this
+// Include <mcx.h> if needed
 #define NOMCX
-// Include <winsvc.h> if you need this
+// Include <winsvc.h> if needed
 #define NOSERVICE
 // WinHelp is deprecated
 #define NOHELP
