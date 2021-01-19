@@ -61,6 +61,7 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
 
+	//TODO: Should Memory for sound  be from platform? - same as it already is with framebuffer
 	GameSoundOutput *soundOutput = (GameSoundOutput *)memory->TransientStorage;
 	soundOutput->buffer = (GameSoundAsset *)((byte *)memory->TransientStorage + sizeof(GameSoundOutput));
 	soundOutput->soundsPlayInfos = (GameSoundPlayInfo *)((byte *)memory->TransientStorage + 2 * sizeof(GameSoundAsset) + sizeof(GameSoundOutput));
