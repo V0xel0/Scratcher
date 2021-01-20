@@ -103,6 +103,9 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 		}
 		else
 		{
+			gameState->colorOffsetX += controller->mouse.deltaX;
+			gameState->colorOffsetY += controller->mouse.deltaY;
+			gameState->colorOffsetX += controller->mouse.deltaWheel;
 		}
 		
 		// Digital input processing

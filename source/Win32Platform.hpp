@@ -158,21 +158,23 @@ namespace Win32
 
 		switch (msg->message)
 		{
-			// Used for obtaining relative mouse movement without acceleration
+			// Used for obtaining relative mouse movement and wheel without acceleration
 			case WM_INPUT:
 			{
-				u32 size = {};
+				u32 size = sizeof(RAWINPUT);
 				RAWINPUT raw[sizeof(RAWINPUT)];
-
-				GetRawInputData((HRAWINPUT)lParam, RID_INPUT, raw, &size, sizeof(RAWINPUTHEADER));
-
-				if (raw->header.dwType == RIM_TYPEMOUSE)
+				u32 copied = GetRawInputData( (HRAWINPUT)lParam, RID_INPUT, raw, &size, sizeof(RAWINPUTHEADER) );
+				
+				if (copied != size)
 				{
-					if (raw->data.mouse.lLastX != 0 || raw->data.mouse.lLastY != 0)
-					{
-						keyboardMouse->mouse.deltaX = raw->data.mouse.lLastX;
-						keyboardMouse->mouse.deltaY = raw->data.mouse.lLastY;
-					}
+					//TODO: Fail handling from GetRawInputData()
+					MessageBoxA(NULL, "Incorrect raw input data size!", "error", 0);
+					break;
+				}
+				if (raw->header.dwType == RIM_TYPEMOUSE )
+				{
+					keyboardMouse->mouse.deltaX = raw->data.mouse.lLastX;
+					keyboardMouse->mouse.deltaY = raw->data.mouse.lLastY;
 					if (raw->data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
 					{
 						keyboardMouse->mouse.deltaWheel = (*(s16 *)&raw->data.mouse.usButtonData);
