@@ -24,7 +24,7 @@ inline internal f64 ElapsedMsHere(const f64 startPoint)
 	return elapsedMs;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, s32 nCmdShow)
 {
 	//?	Consider "inline style" (would be great to have named, capture scopes) as discussed by John Carmack here:
 	//?	http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html
@@ -60,10 +60,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	IXAudio2MasteringVoice *pMasterVoice = nullptr;
 	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
 	GameAssert((HRESULT)hr >= 0);
-
 	//TODO: Consider informing game about limits or adjust platform to game
 	constexpr s32 maxAudioSources = 64;
-	constexpr s32 maxActiveSounds = 2;
+	constexpr s32 maxActiveSounds = 64;
 	s32 nextFreeVoiceID = 0;
 	Win32::XAudioCustomBuffer xaudioCustomBuffers[maxAudioSources] = {};
 	IXAudio2SourceVoice *sourceVoices[maxActiveSounds] = {};
@@ -177,57 +176,43 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
-		//TODO: NOT FINAL AUDIO SYSTEM! Consider spliting for dynamic sounds and loopped ones!
+		//TODO: NOT FINAL AUDIO SYSTEM!
 		//? Main assumption(case) is that audio assets are not changed often and iterate all possible IDs (same as array index)
 		if (gameSoundBuffer.areNewSoundAssetsAdded)
 		{
-			//? Hacky way to check if we replacing existing data
-			if (xaudioCustomBuffers[0].wfx != nullptr)
-			{
-				for (int j = 0; j < maxActiveSounds; ++j)
-				{
-					hr = sourceVoices[j]->Stop();
-					GameAssert((HRESULT)hr >= 0);
-					hr = sourceVoices[j]->FlushSourceBuffers();
-					GameAssert((HRESULT)hr >= 0);
-				}
-			}
-
-			for (int i = 0; i < gameSoundBuffer.maxSoundAssets; ++i)
+			for (s32 i = 0; i < gameSoundBuffer.maxSoundAssets; ++i)
 			{
 				auto &&[wfx, wavData, wavDataSize] = Win32::parseWaveData(gameSoundBuffer.buffer[i].data);
 
-				xaudioCustomBuffers[i].buffer.AudioBytes = wavDataSize;		 //size of the audio buffer in bytes
-				xaudioCustomBuffers[i].buffer.pAudioData = wavData;			 //buffer containing audio data
-				xaudioCustomBuffers[i].buffer.Flags = XAUDIO2_END_OF_STREAM; // tell the source voice not to expect any data after this buffer
+				xaudioCustomBuffers[i].buffer.AudioBytes = wavDataSize;
+				xaudioCustomBuffers[i].buffer.pAudioData = wavData;
+				xaudioCustomBuffers[i].buffer.Flags = XAUDIO2_END_OF_STREAM;
 				xaudioCustomBuffers[i].buffer.LoopCount = gameSoundBuffer.soundsPlayInfos[i].isRepeating ? XAUDIO2_LOOP_INFINITE : 0;
 				xaudioCustomBuffers[i].wfx = wfx;
 			}
-
-			//? If same format, frequency, channels for all sound data
-			for (int j = 0; j < maxActiveSounds; ++j)
+			//TODO: Need to remove old resources manually or create RAII wrapper otherwise it is leaking!
+			// Same wav properties assumed for all sound files! 
+			for (s32 i = 0; i < maxActiveSounds; i++)
 			{
-				hr = XAudio2->CreateSourceVoice(&sourceVoices[j], (WAVEFORMATEX *)xaudioCustomBuffers[0].wfx);
+				hr = XAudio2->CreateSourceVoice(&sourceVoices[i], (WAVEFORMATEX *)xaudioCustomBuffers[0].wfx);
 				GameAssert((HRESULT)hr >= 0);
 			}
 		}
-
-		for (int p = 0; p < gameSoundBuffer.maxSoundAssets; ++p)
+		// Process all sounds
+		//TODO: For now index '0' is assumed to be for looped menu sound
+		for (s32 p = 0; p < gameSoundBuffer.maxSoundAssets; ++p)
 		{
-			// Fixed ring buffer for sourcevoices
+			// Fixed ring buffer for dynamic sourcevoices
 			while(gameSoundBuffer.soundsPlayInfos[p].count > 0)
 			{
-				//TODO: This is constatnly creating new voices and leaking them!
-				hr = XAudio2->CreateSourceVoice(&sourceVoices[nextFreeVoiceID], (WAVEFORMATEX *)xaudioCustomBuffers[p].wfx);
-				GameAssert((HRESULT)hr >= 0);
-
 				hr = sourceVoices[nextFreeVoiceID]->SubmitSourceBuffer(&xaudioCustomBuffers[p].buffer);
 				GameAssert((HRESULT)hr >= 0);
 				hr = sourceVoices[nextFreeVoiceID]->Start();
 				GameAssert((HRESULT)hr >= 0);
 
 				--gameSoundBuffer.soundsPlayInfos[p].count;
-				nextFreeVoiceID = (nextFreeVoiceID + 1) % maxActiveSounds;
+				//? index '0' is reserved for looped
+				nextFreeVoiceID = max(1, ( (nextFreeVoiceID + 1) % maxActiveSounds));
 			}
 		}
 		pMasterVoice->SetVolume(gameSoundBuffer.masterVolume);
