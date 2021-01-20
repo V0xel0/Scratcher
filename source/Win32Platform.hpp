@@ -11,6 +11,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
+#include <mmsystem.h>
 #include <Xinput.h>
 #include <xaudio2.h>
 
@@ -559,5 +560,13 @@ namespace Win32
 			GameAssert(0 && "Not a .wav file!");
 		}
 		return out;
+	}
+
+	internal s32 getMonitorFrequency()
+	{
+		DEVMODEA devInfo = {};
+		devInfo.dmSize = sizeof(DEVMODE);
+		EnumDisplaySettingsA(0 , ENUM_CURRENT_SETTINGS, &devInfo);
+		return devInfo.dmDisplayFrequency;
 	}
 } // namespace Win32

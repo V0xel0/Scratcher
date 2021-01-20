@@ -13,12 +13,12 @@
 #include <cstdio>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
-inline internal s64 ElapsedMsHere(const s64 startPoint)
+inline internal f64 ElapsedMsHere(const f64 startPoint)
 {
 	LARGE_INTEGER hereEnd = {};
-	s64 elapsedMs = 0;
+	f64 elapsedMs = 0.0;
 	QueryPerformanceCounter(&hereEnd);
-	elapsedMs = startPoint - hereEnd.QuadPart;
+	elapsedMs =  hereEnd.QuadPart - startPoint;
 	elapsedMs *= 1000;
 	elapsedMs /= Win32::clockFrequency.QuadPart;
 	return elapsedMs;
@@ -30,15 +30,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//?	http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html
 
 	// Creation and initalization of platform data and interfaces
+	UINT schedulerGranularity = 1;
+	timeBeginPeriod(schedulerGranularity);
+	
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1280, 720);
 	Win32::LoadXInputLibrary();
 	Win32::RegisterMouseForRawInput();
 	QueryPerformanceFrequency(&Win32::clockFrequency);
+	
+	s32 monitorRefresh = Win32::getMonitorFrequency();
+	f64 targetFrequencyRate = 33.333;
 
 	// Timer variables
-	LARGE_INTEGER startTime{};
+	LARGE_INTEGER startTime = {};
 	u64 cycleStart = 0, cycleEnd = 0;
 
 	// Creation of Buffer for previous and current controllers state
@@ -228,14 +234,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		pMasterVoice->SetVolume(gameSoundBuffer.masterVolume);
 
 		// Timers
-		s64 frameTimeMs = ElapsedMsHere(startTime.QuadPart);
 		cycleEnd = __rdtsc();
-		u64 mcpf = (cycleStart - cycleEnd) / (1'000'000);
-
 		swap(oldInputs, newInputs);
+
+		f64 frameTimeMs = ElapsedMsHere((f64)startTime.QuadPart);
+		if(frameTimeMs < targetFrequencyRate)
+		{
+			Sleep((DWORD)(targetFrequencyRate - frameTimeMs));
+		}
+		else
+		{
+			//TODO: Log or loop time governing
+		}
 #if 0
+		frameTimeMs =  ElapsedMsHere((f64)startTime.QuadPart);
 		char tbuffer[32];
-		sprintf(tbuffer, "Ms: %lld\n", frameTimeMs);
+		sprintf(tbuffer, "Ms: %f\n", frameTimeMs);
 		OutputDebugStringA(tbuffer);
 #endif
 	}
