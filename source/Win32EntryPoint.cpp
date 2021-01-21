@@ -13,12 +13,12 @@
 #include <cstdio>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
-inline internal f64 ElapsedMsHere(const f64 startPoint)
+inline internal f32 ElapsedMsHere(const s64 startPoint)
 {
 	LARGE_INTEGER hereEnd = {};
-	f64 elapsedMs = 0.0;
+	f32 elapsedMs = 0.0;
 	QueryPerformanceCounter(&hereEnd);
-	elapsedMs =  hereEnd.QuadPart - startPoint;
+	elapsedMs =  (f32)(hereEnd.QuadPart - startPoint);
 	elapsedMs *= 1000;
 	elapsedMs /= Win32::clockFrequency.QuadPart;
 	return elapsedMs;
@@ -31,7 +31,8 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// Creation and initalization of platform data and interfaces
 	UINT schedulerGranularity = 1;
-	timeBeginPeriod(schedulerGranularity);
+	b32 schedulerError = (timeBeginPeriod(schedulerGranularity) == TIMERR_NOERROR);
+	GameAssert(schedulerError);
 	
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
@@ -41,10 +42,10 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	QueryPerformanceFrequency(&Win32::clockFrequency);
 	
 	s32 monitorRefresh = Win32::getMonitorFrequency();
-	f64 targetFrequencyRate = 33.333;
+	f32 targetFrequencyRate = 33.333333f;
 
 	// Timer variables
-	LARGE_INTEGER startTime = {};
+	LARGE_INTEGER startFrameCounter = {};
 	u64 cycleStart = 0, cycleEnd = 0;
 
 	// Creation of Buffer for previous and current controllers state
@@ -85,10 +86,11 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	AlwaysAssert(gameMemory.PermanentStorage && "Failed to allocate memory from Windows");
 	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
+	QueryPerformanceCounter(&startFrameCounter);
+
 	// Main Win32 platform loop
 	while (Win32::isMainRunning)
 	{
-		QueryPerformanceCounter(&startTime);
 		cycleStart = __rdtsc();
 		MSG msg = {};
 
@@ -221,7 +223,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		cycleEnd = __rdtsc();
 		swap(oldInputs, newInputs);
 
-		f64 frameTimeMs = ElapsedMsHere((f64)startTime.QuadPart);
+		f32 frameTimeMs = ElapsedMsHere(startFrameCounter.QuadPart);
 		if(frameTimeMs < targetFrequencyRate)
 		{
 			Sleep((DWORD)(targetFrequencyRate - frameTimeMs));
@@ -230,10 +232,12 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		{
 			//TODO: Log or loop time governing
 		}
-#if 0
-		frameTimeMs =  ElapsedMsHere((f64)startTime.QuadPart);
+
+		frameTimeMs =  ElapsedMsHere(startFrameCounter.QuadPart);
+		QueryPerformanceCounter(&startFrameCounter);
+#if 1
 		char tbuffer[32];
-		sprintf(tbuffer, "Ms: %f\n", frameTimeMs);
+		sprintf(tbuffer, "Ms: %.02f\n", frameTimeMs);
 		OutputDebugStringA(tbuffer);
 #endif
 	}
