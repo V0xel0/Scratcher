@@ -41,7 +41,14 @@ namespace Win32
 		WAVEFORMATEXTENSIBLE *wfx;
 	};
 
-	// ====================================INTERNAL GLOBALS===============================================================================
+	struct DynamicGameCode
+	{
+		HMODULE gameCodeDLL;
+		gameFullUpdatePtr *update;
+		b32 isValid;
+	};
+
+	// ==================================== INTERNAL GLOBALS ===============================================================================
 	// Internal globals are never exposed to application layer directly, they are mostly data that
 	// needs to be shared with window CALLBACK function in Windows
 
@@ -416,9 +423,7 @@ namespace Win32
 			}
 		}
 	}
-
-	// ===============================================MOUSE RAW INPUT===========================================================
-
+	// =============================================== MOUSE RAW INPUT ===========================================================
 	internal void RegisterMouseForRawInput(HWND window = nullptr)
 	{
 		RAWINPUTDEVICE rawDevices[1];
@@ -435,89 +440,7 @@ namespace Win32
 			GameAssert(0);
 		}
 	}
-
 	// ==============================================================================================================================
-
-#if GAME_INTERNAL
-	internal auto DebugReadFile(char *fileName)
-	{
-		struct Output
-		{
-			void *data;
-			u32 dataSize;
-		} out;
-
-		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-		auto d = deferFunction([&] { CloseHandle(fileHandle); });
-
-		if (fileHandle != INVALID_HANDLE_VALUE)
-		{
-			LARGE_INTEGER fileSize;
-
-			if (GetFileSizeEx(fileHandle, &fileSize))
-			{
-				u32 fileSize32 = truncU64toU32(fileSize.QuadPart);
-				out.data = VirtualAlloc(0, fileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-
-				if (out.data)
-				{
-					DWORD bytesRead;
-					if (ReadFile(fileHandle, out.data, fileSize32, &bytesRead, 0) && (fileSize32 == bytesRead))
-					{
-						out.dataSize = fileSize32;
-					}
-					else
-					{
-						VirtualFree(out.data, 0, MEM_RELEASE);
-						out.data = nullptr;
-						//TODO: Log
-					}
-				}
-			}
-		}
-		else
-		{
-			//TODO: Log
-		}
-
-		return (out);
-	}
-
-	internal b32 DebugWriteFile(char *fileName, void *memory, u32 memSize)
-	{
-		b32 isSuccessful = false;
-		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-		auto d = deferFunction([&] { CloseHandle(fileHandle); });
-
-		if (fileHandle != INVALID_HANDLE_VALUE)
-		{
-			DWORD bytesWritten;
-			if (WriteFile(fileHandle, memory, memSize, &bytesWritten, 0))
-			{
-				isSuccessful = (bytesWritten == memSize);
-			}
-			else
-			{
-				//TODO: Log
-			}
-		}
-		else
-		{
-			//TODO: Log
-		}
-
-		return isSuccessful;
-	}
-
-	internal void DebugFreeFileMemory(void *memory)
-	{
-		if (memory != nullptr)
-		{
-			VirtualFree(memory, 0, MEM_RELEASE);
-		}
-	}
-#endif
-
 	internal auto parseWaveData(void *wavMemory)
 	{
 		if (wavMemory == nullptr)
@@ -569,4 +492,111 @@ namespace Win32
 		EnumDisplaySettingsA(0 , ENUM_CURRENT_SETTINGS, &devInfo);
 		return devInfo.dmDisplayFrequency;
 	}
+// ===================================================== GAME HOT-RELOADING ===============================================================
+	internal DynamicGameCode loadGameCode()
+	{
+		DynamicGameCode output = {};
+		CopyFileA("GameService.dll", "GameServiceTemp.dll", FALSE);
+		output.gameCodeDLL = LoadLibraryA("GameServiceTemp.dll");
+		if(output.gameCodeDLL)
+		{
+			output.update = (gameFullUpdatePtr *)GetProcAddress(output.gameCodeDLL, "gameFullUpdate");
+			output.isValid = (output.update != nullptr);
+		}
+		if(!output.isValid)
+		{
+			output.update = gameFullUpdateNotLoaded;
+		}
+		return output;
+	}
+
+	internal void unloadGameCode(DynamicGameCode *gameCode)
+	{
+		GameAssert(gameCode != 0 && "Trying to free invalid game code!");
+		if(gameCode->gameCodeDLL)
+		{
+			FreeLibrary(gameCode->gameCodeDLL);
+			gameCode->gameCodeDLL = 0;
+		}
+		gameCode->isValid = false;
+		gameCode->update = gameFullUpdateNotLoaded;
+	}
+
+// ================================================= DEBUG INTERNAL FUNCTIONS ==============================================================
+#if GAME_INTERNAL
+	DebugFileOutput DebugReadFile(char *fileName)
+	{
+		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+		auto d = deferFunction([&] { CloseHandle(fileHandle); });
+		DebugFileOutput out = {};
+
+		if (fileHandle != INVALID_HANDLE_VALUE)
+		{
+			LARGE_INTEGER fileSize;
+
+			if (GetFileSizeEx(fileHandle, &fileSize))
+			{
+				u32 fileSize32 = truncU64toU32(fileSize.QuadPart);
+				out.data = VirtualAlloc(0, fileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+				if (out.data)
+				{
+					DWORD bytesRead;
+					if (ReadFile(fileHandle, out.data, fileSize32, &bytesRead, 0) && (fileSize32 == bytesRead))
+					{
+						out.dataSize = fileSize32;
+					}
+					else
+					{
+						VirtualFree(out.data, 0, MEM_RELEASE);
+						out.data = nullptr;
+						//TODO: Log
+					}
+				}
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+
+		return (out);
+	}
+
+	b32 DebugWriteFile(char *fileName, void *memory, u32 memSize)
+	{
+		b32 isSuccessful = false;
+		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+		auto d = deferFunction([&] { CloseHandle(fileHandle); });
+
+		if (fileHandle != INVALID_HANDLE_VALUE)
+		{
+			DWORD bytesWritten;
+			if (WriteFile(fileHandle, memory, memSize, &bytesWritten, 0))
+			{
+				isSuccessful = (bytesWritten == memSize);
+			}
+			else
+			{
+				//TODO: Log
+			}
+		}
+		else
+		{
+			//TODO: Log
+		}
+
+		return isSuccessful;
+	}
+
+	void DebugFreeFileMemory(void *memory)
+	{
+		if (memory != nullptr)
+		{
+			VirtualFree(memory, 0, MEM_RELEASE);
+		}
+	}
+#endif
+
+
 } // namespace Win32

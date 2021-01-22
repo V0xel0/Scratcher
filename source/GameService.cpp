@@ -1,5 +1,4 @@
 #include "GameService.hpp"
-#include "Utils.hpp"
 
 enum SoundTypeID
 {
@@ -57,7 +56,7 @@ internal void gameSendSoundsToPlay(GameSoundOutput *platform, GameSoundOutput *g
 	platform->masterVolume = gameOut->masterVolume;
 }
 
-void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds, GameInput *inputs)
+extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
 
@@ -72,11 +71,11 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 		gameState->colorOffsetY = 0;
 
 		//TODO: All sound loading by "DebugReadFile" is temporary!
-		auto &&[rawFileData, rawFileSize] = Win32::DebugReadFile("D:/menu_1.wav");
+		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("D:/menu_1.wav");
 		soundOutput->buffer[Menu1].data = rawFileData;
 		soundOutput->buffer[Menu1].size = rawFileSize;
 
-		auto &&[otherFileData, otherFileSize] = Win32::DebugReadFile("D:/laser_1.wav");
+		auto &&[otherFileData, otherFileSize] = memory->DEBUGPlatformReadFile("D:/laser_1.wav");
 		soundOutput->buffer[LaserBullet].data = otherFileData;
 		soundOutput->buffer[LaserBullet].size = otherFileSize;
 
@@ -135,4 +134,15 @@ void gameFullUpdate(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutpu
 	gameRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
 
 	soundOutput->areNewSoundAssetsAdded = false;
+}
+
+//TODO: THIS IS TEMPORARY
+#include "windows.h"
+BOOL WINAPI DllMain(
+    _In_  HINSTANCE hinstDLL,
+    _In_  DWORD fdwReason,
+    _In_  LPVOID lpvReserved
+                    )
+{
+    return(TRUE);
 }

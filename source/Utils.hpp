@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "GameAssertions.hpp"
 
 using f32 = float;
 using f64 = double;

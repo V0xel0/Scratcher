@@ -10,10 +10,11 @@ IF NOT EXIST .\build mkdir .\build
 pushd .\build
 del *.pdb > NUL 2> NUL
 
-REM Unity build
-cl.exe %compilerFlags% ../source/Win32EntryPoint.cpp /link %linkerFlags% && .\scratcher.exe
+REM
+cl.exe %compilerFlags% ../source/GameService.cpp /LD /link /EXPORT:gameFullUpdate
+cl.exe %compilerFlags% ../source/Win32EntryPoint.cpp /link %linkerFlags%
 
 REM non-unity build
 REM cl.exe %compilerFlags% ../source/*.cpp /link %linkerFlags% && .\scratcher.exe
-
+call .\scratcher.exe
 popd

@@ -1,13 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "GameAssertions.hpp"
 #include "Utils.hpp"
 #include "GameService.hpp"
 #include "Win32Platform.hpp"
-
-#if UNITY_BUILD
-#include "GameService.cpp"
-#endif
 
 #include <omp.h>
 #include <cstdio>
@@ -73,6 +68,9 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GameMemory gameMemory = {};
 	gameMemory.PermanentStorageSize = MiB(64);
 	gameMemory.TransientStorageSize = GiB(4);
+	gameMemory.DEBUGplatformFreeFile = Win32::DebugFreeFileMemory;
+	gameMemory.DEBUGPlatformReadFile = Win32::DebugReadFile;
+	gameMemory.DEBUGPlatformWriteFile = Win32::DebugWriteFile;
 
 	// Check available memory
 	MEMORYSTATUSEX memStatus = {};
@@ -87,12 +85,22 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
 	QueryPerformanceCounter(&startFrameCounter);
+	Win32::DynamicGameCode gameCode = Win32::loadGameCode();
+	u32 loadCodeCounter = 0;
 
 	// Main Win32 platform loop
 	while (Win32::isMainRunning)
 	{
 		cycleStart = __rdtsc();
 		MSG msg = {};
+
+		//TODO: TEMPOROARY FOR CHECKING ONLY
+		if(loadCodeCounter++ > 120)
+		{	
+			Win32::unloadGameCode(&gameCode);
+			gameCode = Win32::loadGameCode();
+			loadCodeCounter = 0;
+		}
 
 		//TODO: More explicitly indicate controllers IDs
 		// Handling of Keyboard + mouse controller
@@ -171,7 +179,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		GameSoundOutput gameSoundBuffer = {};
 
 		// Update
-		gameFullUpdate(&gameMemory, &gameScreenBuffer, &gameSoundBuffer, newInputs);
+		gameCode.update(&gameMemory, &gameScreenBuffer, &gameSoundBuffer, newInputs);
 
 		GameAssert(maxAudioSources >= gameSoundBuffer.maxSoundAssets && "Too much audio sources to handle!");
 		GameAssert(maxActiveSounds >= gameSoundBuffer.maxSoundAssets && "Too much audio sources to handle!");
