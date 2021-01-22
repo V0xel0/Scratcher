@@ -135,14 +135,3 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 	soundOutput->areNewSoundAssetsAdded = false;
 }
-
-//TODO: THIS IS TEMPORARY
-#include "windows.h"
-BOOL WINAPI DllMain(
-    _In_  HINSTANCE hinstDLL,
-    _In_  DWORD fdwReason,
-    _In_  LPVOID lpvReserved
-                    )
-{
-    return(TRUE);
-}
