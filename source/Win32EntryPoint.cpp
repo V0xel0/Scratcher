@@ -24,6 +24,12 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//?	Consider "inline style" (would be great to have named, capture scopes) as discussed by John Carmack here:
 	//?	http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html
 
+	AlwaysAssert(sizeof(void*) == 8);
+	//TODO: Make them relative - yes force exe to particular dir
+	const char *gameDllPath = "D:/programowanie/MojeNowe/Scratcher/build/GameService.dll";
+	const char *gameDllTempPath = "D:/programowanie/MojeNowe/Scratcher/build/GameServiceTemp.dll";
+	const char *lockPath = "D:/programowanie/MojeNowe/Scratcher/build/lock.tmp";
+
 	// Creation and initalization of platform data and interfaces
 	UINT schedulerGranularity = 1;
 	b32 schedulerError = (timeBeginPeriod(schedulerGranularity) == TIMERR_NOERROR);
@@ -37,7 +43,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	QueryPerformanceFrequency(&Win32::clockFrequency);
 	
 	s32 monitorRefresh = Win32::getMonitorFrequency();
-	f32 targetFrequencyRate = 33.333333f;
+	f32 targetFrequencyRate = 33.3333333f;
 
 	// Timer variables
 	LARGE_INTEGER startFrameCounter = {};
@@ -53,8 +59,8 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	HRESULT hr;
 	hr = XAudio2Create(&XAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
 	GameAssert((HRESULT)hr >= 0);
-	IXAudio2MasteringVoice *pMasterVoice = nullptr;
-	hr = XAudio2->CreateMasteringVoice(&pMasterVoice);
+	IXAudio2MasteringVoice *masterVoice = nullptr;
+	hr = XAudio2->CreateMasteringVoice(&masterVoice);
 	GameAssert((HRESULT)hr >= 0);
 	//TODO: Consider informing game about limits or adjust platform to game
 	constexpr s32 maxAudioSources = 64;
@@ -85,21 +91,20 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
 	QueryPerformanceCounter(&startFrameCounter);
-	Win32::DynamicGameCode gameCode = Win32::loadGameCode();
-	u32 loadCodeCounter = 0;
+	Win32::DynamicGameCode gameCode = Win32::loadGameCode(gameDllPath, gameDllTempPath, lockPath);
 
 	// Main Win32 platform loop
 	while (Win32::isMainRunning)
 	{
 		cycleStart = __rdtsc();
 		MSG msg = {};
-
-		//TODO: TEMPOROARY FOR CHECKING ONLY
-		if(loadCodeCounter++ > 120)
+		
+		// Check if there is new game code dll to update
+		FILETIME newDllTime = Win32::getFileWriteTime(gameDllPath);
+		if(CompareFileTime(&newDllTime, &gameCode.lastChangeTime) != 0)
 		{	
 			Win32::unloadGameCode(&gameCode);
-			gameCode = Win32::loadGameCode();
-			loadCodeCounter = 0;
+			gameCode = Win32::loadGameCode(gameDllPath, gameDllTempPath, lockPath);
 		}
 
 		//TODO: More explicitly indicate controllers IDs
@@ -225,7 +230,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				nextFreeVoiceID = max(1, ( (nextFreeVoiceID + 1) % maxActiveSounds));
 			}
 		}
-		pMasterVoice->SetVolume(gameSoundBuffer.masterVolume);
+		masterVoice->SetVolume(gameSoundBuffer.masterVolume);
 
 		// Timers
 		cycleEnd = __rdtsc();

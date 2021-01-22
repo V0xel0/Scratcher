@@ -44,6 +44,7 @@ namespace Win32
 	struct DynamicGameCode
 	{
 		HMODULE gameCodeDLL;
+		FILETIME lastChangeTime;
 		gameFullUpdatePtr *update;
 		b32 isValid;
 	};
@@ -493,20 +494,38 @@ namespace Win32
 		return devInfo.dmDisplayFrequency;
 	}
 // ===================================================== GAME HOT-RELOADING ===============================================================
-	internal DynamicGameCode loadGameCode()
+	internal FILETIME getFileWriteTime(const char *name)
+	{
+		FILETIME time = {};
+		WIN32_FILE_ATTRIBUTE_DATA data;
+		if (GetFileAttributesExA(name, GetFileExInfoStandard, &data ))
+		{
+			time = data.ftLastWriteTime;
+		}
+		return time;
+	}
+	
+	internal DynamicGameCode loadGameCode(const char *dllName, const char *tempDllName, const char *lockFilePath)
 	{
 		DynamicGameCode output = {};
-		CopyFileA("GameService.dll", "GameServiceTemp.dll", FALSE);
-		output.gameCodeDLL = LoadLibraryA("GameServiceTemp.dll");
-		if(output.gameCodeDLL)
+		WIN32_FILE_ATTRIBUTE_DATA ignored;
+		if (!GetFileAttributesExA(lockFilePath, GetFileExInfoStandard, &ignored))
 		{
-			output.update = (gameFullUpdatePtr *)GetProcAddress(output.gameCodeDLL, "gameFullUpdate");
-			output.isValid = (output.update != nullptr);
+			output.lastChangeTime = Win32::getFileWriteTime(dllName);
+			CopyFileA(dllName, tempDllName, FALSE);
+			output.gameCodeDLL = LoadLibraryA(tempDllName);
+
+			if(output.gameCodeDLL)
+			{
+				output.update = (gameFullUpdatePtr *)GetProcAddress(output.gameCodeDLL, "gameFullUpdate");
+				output.isValid = (output.update != nullptr);
+			}
 		}
 		if(!output.isValid)
 		{
 			output.update = gameFullUpdateNotLoaded;
 		}
+
 		return output;
 	}
 
