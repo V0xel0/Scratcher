@@ -1,5 +1,5 @@
 @echo off
-call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+REM call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
 
 set buildDefines=/DUNITY_BUILD=1 /DGAME_ASSERTIONS=1 /DGAME_INTERNAL=1
 set warnings=/WX /W4 /wd4201 /wd4100 /wd4189 /wd4505 /wd4701
@@ -10,11 +10,10 @@ IF NOT EXIST .\build mkdir .\build
 pushd .\build
 del *.pdb > NUL 2> NUL
 
-REM
+REM Hot-Reload build
 cl.exe %compilerFlags% ../source/GameService.cpp /LD /link /EXPORT:gameFullUpdate
 cl.exe %compilerFlags% ../source/Win32EntryPoint.cpp /link %linkerFlags%
 
 REM non-unity build
 REM cl.exe %compilerFlags% ../source/*.cpp /link %linkerFlags% && .\scratcher.exe
-call .\scratcher.exe
 popd
