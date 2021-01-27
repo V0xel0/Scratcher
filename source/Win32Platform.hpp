@@ -49,6 +49,18 @@ namespace Win32
 		b32 isValid;
 	};
 
+	struct PlatformState
+	{
+		u64 totalSize;
+		void *gameMemory;
+
+		HANDLE recordingHandle;
+		s32 recordID;
+
+		HANDLE playbackHandle;
+		s32 playbackID;
+	};
+
 	// ==================================== INTERNAL GLOBALS ===============================================================================
 	// Internal globals are never exposed to application layer directly, they are mostly data that
 	// needs to be shared with window CALLBACK function in Windows
@@ -150,6 +162,67 @@ namespace Win32
 		}
 		return (output);
 	}
+	
+	//TODO: Use additional memory and write lazily to disk instead?
+	internal void beginInputRecording(PlatformState *state, s32 inputRecordID)
+	{
+		state->recordID = inputRecordID;
+
+		const char *fileName = "input.reci";
+		state->recordingHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+		//TODO: Save state only instead of whole memory?
+		DWORD bytesToWrite = (DWORD)state->totalSize;
+		AlwaysAssert(state->totalSize == bytesToWrite);
+		DWORD bytesWritten;
+		WriteFile(state->recordingHandle, state->gameMemory, bytesToWrite, &bytesWritten, 0);
+	}
+
+	internal void endInputRecording(PlatformState *state)
+	{
+		CloseHandle(state->recordingHandle);
+		state->recordID = 0;
+	}
+
+	internal void beginInputPlayback(PlatformState *state, s32 inputPlaybackID)
+	{
+		state->playbackID = inputPlaybackID;
+
+		const char *fileName = "input.reci";
+		state->playbackHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+		DWORD bytesToRead = (DWORD)state->totalSize;
+		AlwaysAssert(state->totalSize == bytesToRead);
+		DWORD bytesRead;
+		ReadFile(state->playbackHandle, state->gameMemory, bytesToRead, &bytesRead, 0);
+	}
+
+	internal void endInputPlayback(PlatformState *state)
+	{
+		CloseHandle(state->playbackHandle);
+		state->playbackID = 0;
+	}
+
+	internal void recordInput(PlatformState *state, GameInput *newInput)
+	{
+		DWORD bytesWritten = 0;
+		WriteFile(state->recordingHandle, newInput, sizeof(*newInput), &bytesWritten, 0);
+	}
+
+	internal void playBackInput(PlatformState *state, GameInput *newInput)
+	{
+		DWORD bytesRead = 0;
+		if(ReadFile(state->playbackHandle, newInput, sizeof(*newInput), &bytesRead, 0))
+		{
+			// After reaching end, start from beginning
+			if(bytesRead == 0)
+			{
+				s32 playID = state->playbackID;
+				Win32::endInputPlayback(state);
+				Win32::beginInputPlayback(state, playID);
+				// Read input again after reading game state
+				ReadFile(state->playbackHandle, newInput, sizeof(*newInput), &bytesRead, 0);
+			}
+		}
+	}
 
 	internal void processKeyboardMouseEvent(GameKeyState *newState, b32 isDown)
 	{
@@ -160,7 +233,7 @@ namespace Win32
 		}
 	}
 
-	internal void processKeyboardMouseMsgs(MSG *msg, GameController *keyboardMouse)
+	internal void processKeyboardMouseMsgs(PlatformState *state, MSG *msg, GameController *keyboardMouse)
 	{
 		LPARAM lParam = msg->lParam;
 		WPARAM wParam = msg->wParam;
@@ -296,6 +369,23 @@ namespace Win32
 					{
 						processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
 					}
+					#if GAME_INTERNAL
+					else if (vkCode == 'L')
+					{
+						if(isDown)
+						{
+							if(state->recordID == 0)
+							{
+								Win32::beginInputRecording(state, 1);
+							}
+							else
+							{
+								Win32::endInputRecording(state);
+								Win32::beginInputPlayback(state, 1);
+							}
+						}
+					}	
+					#endif
 				}
 				b32 altWasDown = TestBit(lParam, 29);
 				if ((vkCode == VK_F4) && altWasDown)

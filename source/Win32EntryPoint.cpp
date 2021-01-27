@@ -71,9 +71,14 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// Providing memory for game
 	//TODO: Consider big reserve and then commit as grow/needed for eventual editor
+	LPVOID baseAddress = nullptr;
+	#if GAME_INTERNAL
+		baseAddress = (LPVOID)TiB(2);
+	#endif
+	
 	GameMemory gameMemory = {};
 	gameMemory.PermanentStorageSize = MiB(64);
-	gameMemory.TransientStorageSize = GiB(4);
+	gameMemory.TransientStorageSize = GiB(1);
 	gameMemory.DEBUGplatformFreeFile = Win32::DebugFreeFileMemory;
 	gameMemory.DEBUGPlatformReadFile = Win32::DebugReadFile;
 	gameMemory.DEBUGPlatformWriteFile = Win32::DebugWriteFile;
@@ -83,11 +88,16 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	memStatus.dwLength = sizeof(memStatus);
 	GlobalMemoryStatusEx(&memStatus);
 	u64 availablePhysicalMemory = memStatus.ullAvailPhys;
-	u64 maxMemorySize = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
-	AlwaysAssert(maxMemorySize < availablePhysicalMemory && "Download more RAM");
 
-	gameMemory.PermanentStorage = VirtualAlloc(nullptr, maxMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-	AlwaysAssert(gameMemory.PermanentStorage && "Failed to allocate memory from Windows");
+	// Memory platform allocation
+	Win32::PlatformState platformState = {};
+	platformState.totalSize = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
+	AlwaysAssert(platformState.totalSize < availablePhysicalMemory && "Download more RAM");
+	platformState.gameMemory =  VirtualAlloc(baseAddress, platformState.totalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	AlwaysAssert(platformState.gameMemory && "Failed to allocate memory from Windows");
+
+	// Assign memory to game layer
+	gameMemory.PermanentStorage = platformState.gameMemory;
 	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
 	QueryPerformanceCounter(&startFrameCounter);
@@ -120,7 +130,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))
 		{
-			Win32::processKeyboardMouseMsgs(&msg, newKeyboardMouseController);
+			Win32::processKeyboardMouseMsgs(&platformState, &msg, newKeyboardMouseController);
 			TranslateMessage(&msg);
 			DispatchMessageA(&msg);
 			if (msg.message == WM_QUIT)
@@ -174,12 +184,23 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 		}
 
+		// Playback input check
+		if(platformState.recordID)
+		{
+			Win32::recordInput(&platformState, newInputs);
+		}
+		if(platformState.playbackID)
+		{
+			Win32::playBackInput(&platformState, newInputs);
+		}
+
 		// Fill game services
 		GameScreenBuffer gameScreenBuffer = {};
 		gameScreenBuffer.height = Win32::internalBuffer.height;
 		gameScreenBuffer.width = Win32::internalBuffer.width;
 		gameScreenBuffer.pitch = Win32::internalBuffer.pitch;
 		gameScreenBuffer.memory = Win32::internalBuffer.memory;
+		gameScreenBuffer.bytesPerPixel = Win32::bytesPerPixel;
 
 		GameSoundOutput gameSoundBuffer = {};
 

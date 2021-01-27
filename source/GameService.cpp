@@ -1,4 +1,5 @@
 #include "GameService.hpp"
+#include "cmath"
 
 enum SoundTypeID
 {
@@ -7,7 +8,7 @@ enum SoundTypeID
 	CountOfTypes
 };
 
-// TEST-ONLY-FUNCTION for checking basic pixel drawing & looping
+//TODO: TEST-ONLY, function for checking basic pixel drawing & looping
 internal void gameRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
 {
 	s32 width = gameBuffer->width;
@@ -47,6 +48,29 @@ internal void gameRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const 
 #endif
 }
 
+//TODO: TEST-ONLY TEMPORARY function
+internal void playerRender(GameScreenBuffer *gameBuffer, const s32 playerX,  s32 playerY)
+{
+	byte *bufferEnd = (byte *)gameBuffer->memory + gameBuffer->pitch * gameBuffer->height;
+
+	u32 color = 0xFF'FF'FF'FF;
+	s32 top = playerY;
+	s32 bottom = playerY+10;
+	for (s32 x = playerX; x < playerX+10; x++)
+	{
+		byte *pixel = ((byte *)gameBuffer->memory + x * gameBuffer->bytesPerPixel + top * gameBuffer->pitch);
+		for (s32 y = playerY; y < bottom; y++)
+		{
+			if( (pixel >= gameBuffer->memory) && (pixel + 4) <= bufferEnd)
+			{
+				*(u32 *)pixel = color;
+			}
+			pixel += gameBuffer->pitch;
+		}
+		
+	}
+}
+
 internal void gameSendSoundsToPlay(GameSoundOutput *platform, GameSoundOutput *gameOut)
 {
 	platform->areNewSoundAssetsAdded = gameOut->areNewSoundAssetsAdded;
@@ -60,7 +84,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
 
-	//TODO: Should Memory for sound  be from platform? - same as it already is with framebuffer
+	//TODO: Should Memory for sound  be from additional platform allocation? - same as with framebuffer
 	GameSoundOutput *soundOutput = (GameSoundOutput *)memory->TransientStorage;
 	soundOutput->buffer = (GameSoundAsset *)((byte *)memory->TransientStorage + sizeof(GameSoundOutput));
 	soundOutput->soundsPlayInfos = (GameSoundPlayInfo *)((byte *)memory->TransientStorage + 2 * sizeof(GameSoundAsset) + sizeof(GameSoundOutput));
@@ -70,7 +94,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		gameState->colorOffsetX = 0;
 		gameState->colorOffsetY = 0;
 
-		//TODO: All sound loading by "DebugReadFile" is temporary!
+		//TODO: TEST-ONLY, All sound loading by "DebugReadFile" is temporary!
 		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("D:/menu_1.wav");
 		soundOutput->buffer[Menu1].data = rawFileData;
 		soundOutput->buffer[Menu1].size = rawFileSize;
@@ -81,11 +105,14 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 		soundOutput->maxSoundAssets = 2;
 		soundOutput->areNewSoundAssetsAdded = true;
-		//TODO: Test only
+		//TODO: TEST-ONLY
 		++soundOutput->soundsPlayInfos[Menu1].count;
 		soundOutput->soundsPlayInfos[Menu1].isRepeating = true;
 		soundOutput->soundsPlayInfos[LaserBullet].isRepeating = false;
 		soundOutput->masterVolume = 0.1f;
+		//TODO: TEST-ONLY, SOME TEMPORARY LOGIC
+		gameState->playerX = 100;
+		gameState->playerY = 100;
 
 		memory->isInitialized = true;
 	}
@@ -97,8 +124,10 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		// Analog input processing
 		if (controller->isGamePad)
 		{
-			gameState->colorOffsetX += (s32)(controller->gamePad.StickAverageX*4);
-			gameState->colorOffsetY -= (s32)(controller->gamePad.StickAverageY*4);
+			//gameState->colorOffsetX += (s32)(controller->gamePad.StickAverageX*4);
+			//gameState->colorOffsetY -= (s32)(controller->gamePad.StickAverageY*4);
+			gameState->playerX += (s32)(controller->gamePad.StickAverageX*4);
+			gameState->playerY -= (s32)(controller->gamePad.StickAverageY*4);
 		}
 		else
 		{
@@ -127,11 +156,20 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		if (controller->actionFire.wasDown && controller->actionFire.halfTransCount)
 		{
 			++soundOutput->soundsPlayInfos[LaserBullet].count;
+			gameState->gravityJump = 4.0f;
 		}
 	}
 
+	//TODO: TEST-ONLY, SOME TEMPORARY LOGIC
+	if(gameState->gravityJump > 0)
+	{
+		gameState->playerY += (s32)(6.0f*sinf(0.5f*PI32*gameState->gravityJump));
+	}
+	gameState->gravityJump -= 0.045f;
+
 	gameSendSoundsToPlay(sounds, soundOutput);
 	gameRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
+	playerRender(buffer, gameState->playerX, gameState->playerY);
 
 	soundOutput->areNewSoundAssetsAdded = false;
 }

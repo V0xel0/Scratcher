@@ -19,6 +19,7 @@ struct GameScreenBuffer
 	s32 width;
 	s32 height;
 	s32 pitch;
+	s32 bytesPerPixel;
 };
 
 struct GameSoundAsset
@@ -133,6 +134,11 @@ struct GameState
 {
 	s32 colorOffsetX;
 	s32 colorOffsetY;
+
+	s32 playerX;
+	s32 playerY;
+
+	f32 gravityJump;
 };
 
 #define GAME_FULL_UPDATE(name) void name(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds, GameInput *inputs)
