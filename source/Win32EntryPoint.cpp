@@ -25,16 +25,17 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//?	http://number-none.com/blow/blog/programming/2014/09/26/carmack-on-inlined-code.html
 
 	AlwaysAssert(sizeof(void*) == 8);
-	//TODO: Make them relative - yes force exe to particular dir
-	const char *gameDllPath = "D:/programowanie/MojeNowe/Scratcher/build/GameService.dll";
-	const char *gameDllTempPath = "D:/programowanie/MojeNowe/Scratcher/build/GameServiceTemp.dll";
-	const char *lockPath = "D:/programowanie/MojeNowe/Scratcher/build/lock.tmp";
 
-	// Creation and initalization of platform data and interfaces
+	const char *gameDllPath = "../build/GameService.dll";
+	const char *gameDllTempPath = "../build/GameServiceTemp.dll";
+	const char *lockPath = "../build/lock.tmp";
+
+	// Windows scheduler setup
 	UINT schedulerGranularity = 1;
 	b32 schedulerError = (timeBeginPeriod(schedulerGranularity) == TIMERR_NOERROR);
 	GameAssert(schedulerError);
-	
+
+	// Creation and initalization of platform data and interfaces
 	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1280, 720);
@@ -79,9 +80,9 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GameMemory gameMemory = {};
 	gameMemory.PermanentStorageSize = MiB(64);
 	gameMemory.TransientStorageSize = GiB(1);
-	gameMemory.DEBUGplatformFreeFile = Win32::DebugFreeFileMemory;
-	gameMemory.DEBUGPlatformReadFile = Win32::DebugReadFile;
-	gameMemory.DEBUGPlatformWriteFile = Win32::DebugWriteFile;
+	gameMemory.DEBUGplatformFreeFile = Win32::debugFreeFileMemory;
+	gameMemory.DEBUGPlatformReadFile = Win32::debugReadFile;
+	gameMemory.DEBUGPlatformWriteFile = Win32::debugWriteFile;
 
 	// Check available memory
 	MEMORYSTATUSEX memStatus = {};
@@ -89,8 +90,9 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GlobalMemoryStatusEx(&memStatus);
 	u64 availablePhysicalMemory = memStatus.ullAvailPhys;
 
-	// Memory platform allocation
+	// Memory platform allocation & state initalization
 	Win32::PlatformState platformState = {};
+	platformState.recordInputFileName = "input.reci";
 	platformState.totalSize = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
 	AlwaysAssert(platformState.totalSize < availablePhysicalMemory && "Download more RAM");
 	platformState.gameMemory =  VirtualAlloc(baseAddress, platformState.totalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -140,7 +142,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 		}
 
-		//=============================================XINPUT============================================================
+		// Xinput handling
 		s32 maxActiveGamePads = min((s32)XUSER_MAX_COUNT, ArrayCount32(newInputs->controllers) - 1);
 		for (s32 gamePadID = 1; gamePadID <= maxActiveGamePads; gamePadID++)
 		{
@@ -204,7 +206,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		GameSoundOutput gameSoundBuffer = {};
 
-		// Update
+		// Call game update
 		gameCode.update(&gameMemory, &gameScreenBuffer, &gameSoundBuffer, newInputs);
 
 		GameAssert(maxAudioSources >= gameSoundBuffer.maxSoundAssets && "Too much audio sources to handle!");
@@ -212,6 +214,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		Win32::UpdateWindow(deviceContext, window, &Win32::internalBuffer);
 
+		// Audio handling
 		//TODO: NOT FINAL AUDIO SYSTEM!
 		//? Main assumption(case) is that audio assets are not changed often and iterate all possible IDs (same as array index)
 		if (gameSoundBuffer.areNewSoundAssetsAdded)

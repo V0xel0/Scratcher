@@ -15,9 +15,9 @@
 #include <Xinput.h>
 #include <xaudio2.h>
 
-// Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
-// In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is
-// provided for all custom platform layer functions and structures
+//? Win32 Platform layer implementations, intended to be used with "WINAPI WinMain" only!
+//? In order to provide distinction from Microsoft's WinApi functions "Win32" namespace is
+//? provided for all custom platform layer functions and structures
 //! DO NOT INCLUDE IT ENYWHERE ELSE THAN IN WIN32 ENTRY POINT COMPILATION UNIT FILE!
 namespace Win32
 {
@@ -59,44 +59,23 @@ namespace Win32
 
 		HANDLE playbackHandle;
 		s32 playbackID;
+
+		const char *recordInputFileName;
 	};
 
-	// ==================================== INTERNAL GLOBALS ===============================================================================
-	// Internal globals are never exposed to application layer directly, they are mostly data that
-	// needs to be shared with window CALLBACK function in Windows
+	// ========================================== INTERNAL GLOBALS =================================================================
+
+	//? Internal globals are never exposed to application layer directly, they are mostly data that
+	//? needs to be shared with window CALLBACK function in Windows
 
 	global_variable b32 isMainRunning = true;
 	global_variable LARGE_INTEGER clockFrequency;
 
-	// One 4 bytes per pixel buffer with one not shared device context is assumed
+	//? One 4 bytes per pixel buffer with one not shared device context is assumed
 	constexpr global_variable s32 bytesPerPixel = 4;
 	global_variable ScreenBuffer internalBuffer = {};
 
-	// =================================================================================================================================
-
-	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
-	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
-	internal void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
-	{
-		GameAssert(buffer != nullptr);
-		if (buffer->memory)
-		{
-			VirtualFree(buffer->memory, 0, MEM_RELEASE);
-		}
-		buffer->width = w;
-		buffer->height = h;
-		// Set header info for bitmap
-		buffer->info.bmiHeader.biSize = sizeof(buffer->info.bmiHeader);
-		buffer->info.bmiHeader.biWidth = w;
-		buffer->info.bmiHeader.biHeight = -h;
-		buffer->info.bmiHeader.biPlanes = 1;
-		buffer->info.bmiHeader.biBitCount = 32;
-		buffer->info.bmiHeader.biCompression = BI_RGB;
-
-		buffer->pitch = AlignAddress16(buffer->width * bytesPerPixel);
-		u32 bitmapMemorySize = buffer->pitch * buffer->height;
-		buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-	}
+	// ======================================== WINDOW AND GRAPHICS BUFFER =========================================================
 
 	// Used for getting dimensions of client area for passed window
 	internal WindowDimensions GetWindowClientDimensions(HWND window)
@@ -162,14 +141,87 @@ namespace Win32
 		}
 		return (output);
 	}
-	
+
+	// Creates window for current process, cause of CS_OWNDC device context is assumed to not be shared with anyone
+	internal HWND CreateMainWindow(const s32 w, const s32 h, const char *name)
+	{
+		HINSTANCE instance = nullptr;
+		HWND mainWindow = nullptr;
+
+		instance = GetModuleHandleA(nullptr);
+		WNDCLASSEXA windowClass = {};
+
+		windowClass.cbSize = sizeof(WNDCLASSEXA);
+		windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+		windowClass.lpfnWndProc = Win32::mainWindowCallback;
+		windowClass.hInstance = instance;
+		//windowClass.hIcon = LoadIcon(instance, "IDI_WINLOGO");
+		windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 6);
+		windowClass.lpszClassName = name;
+		//windowClass.hIconSm = LoadIcon(windowClass.hInstance, "IDI_ICON");
+
+		const s32 error = RegisterClassExA(&windowClass);
+		GameAssert(error != 0 && "Class registration failed");
+
+		RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
+		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
+		const s32 winStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_OVERLAPPED | WS_SYSMENU;
+
+		mainWindow = CreateWindowExA(
+			WS_EX_APPWINDOW,
+			name,
+			name,
+			winStyle,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			rc.right - rc.left,
+			rc.bottom - rc.top,
+			nullptr,
+			nullptr,
+			instance,
+			nullptr);
+
+		GameAssert(mainWindow != nullptr && "Window creation failed");
+
+		ShowWindow(mainWindow, SW_SHOW);
+		SetForegroundWindow(mainWindow);
+		SetFocus(mainWindow);
+
+		return mainWindow;
+	}
+
+	//TODO: Change allocation model to not allocate and just get memory from outside or if not then consider wrapping to RAII
+	// Used to create a new Win32 Screen Buffer with 4 bytes pixels with BGRA memory order
+	internal void ResizeInternalBuffer(ScreenBuffer *buffer, const s32 w, const s32 h)
+	{
+		GameAssert(buffer != nullptr);
+		if (buffer->memory)
+		{
+			VirtualFree(buffer->memory, 0, MEM_RELEASE);
+		}
+		buffer->width = w;
+		buffer->height = h;
+		// Set header info for bitmap
+		buffer->info.bmiHeader.biSize = sizeof(buffer->info.bmiHeader);
+		buffer->info.bmiHeader.biWidth = w;
+		buffer->info.bmiHeader.biHeight = -h;
+		buffer->info.bmiHeader.biPlanes = 1;
+		buffer->info.bmiHeader.biBitCount = 32;
+		buffer->info.bmiHeader.biCompression = BI_RGB;
+
+		buffer->pitch = AlignAddress16(buffer->width * bytesPerPixel);
+		u32 bitmapMemorySize = buffer->pitch * buffer->height;
+		buffer->memory = VirtualAlloc(nullptr, bitmapMemorySize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+	}
+	// ========================================= INPUT & GAME STATE RECORDING ============================================================
+
 	//TODO: Use additional memory and write lazily to disk instead?
-	internal void beginInputRecording(PlatformState *state, s32 inputRecordID)
+	internal void beginInputRecording(PlatformState *state, const s32 inputRecordID)
 	{
 		state->recordID = inputRecordID;
-
-		const char *fileName = "input.reci";
-		state->recordingHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+		state->recordingHandle = CreateFileA(state->recordInputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+		
 		//TODO: Save state only instead of whole memory?
 		DWORD bytesToWrite = (DWORD)state->totalSize;
 		AlwaysAssert(state->totalSize == bytesToWrite);
@@ -186,9 +238,8 @@ namespace Win32
 	internal void beginInputPlayback(PlatformState *state, s32 inputPlaybackID)
 	{
 		state->playbackID = inputPlaybackID;
+		state->playbackHandle = CreateFileA(state->recordInputFileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
 
-		const char *fileName = "input.reci";
-		state->playbackHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
 		DWORD bytesToRead = (DWORD)state->totalSize;
 		AlwaysAssert(state->totalSize == bytesToRead);
 		DWORD bytesRead;
@@ -224,7 +275,9 @@ namespace Win32
 		}
 	}
 
-	internal void processKeyboardMouseEvent(GameKeyState *newState, b32 isDown)
+	// =========================================== MOUSE & KEYBOARD EVENTS HANDLING ==================================================
+
+	internal void processKeyboardMouseEvent(GameKeyState *newState, const b32 isDown)
 	{
 		if(newState->wasDown != isDown)
 		{
@@ -311,63 +364,63 @@ namespace Win32
 				{
 					if (vkCode == 'W')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
 					}
 					else if (vkCode == 'S')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
 					}
 					else if (vkCode == 'A')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
 					}
 					else if (vkCode == 'D')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
 					}
 					else if (vkCode == 'Q')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->action1, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->action1, isDown);
 					}
 					else if (vkCode == 'E')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->action2, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->action2, isDown);
 					}
 					else if (vkCode == 'Z')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->action3, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->action3, isDown);
 					}
 					else if (vkCode == 'X')
 					{
-						processKeyboardMouseEvent(&keyboardMouse->action4, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->action4, isDown);
 					}
 					else if (vkCode == VK_ESCAPE)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->back, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->back, isDown);
 					}
 					else if (vkCode == VK_RETURN)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->start, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->start, isDown);
 					}
 					else if (vkCode == VK_SPACE)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->actionFire, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->actionFire, isDown);
 					}
 					else if (vkCode == VK_UP)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
 					}
 					else if (vkCode == VK_DOWN)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
 					}
 					else if (vkCode == VK_LEFT)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveLeft, isDown);
 					}
 					else if (vkCode == VK_RIGHT)
 					{
-						processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->moveRight, isDown);
 					}
 					#if GAME_INTERNAL
 					else if (vkCode == 'L')
@@ -401,56 +454,8 @@ namespace Win32
 		}
 	}
 
-	// Creates window for current process, cause of CS_OWNDC device context is assumed to not be shared with anyone
-	internal HWND CreateMainWindow(const s32 w, const s32 h, const char *name)
-	{
-		HINSTANCE instance = nullptr;
-		HWND mainWindow = nullptr;
+	// =============================================== XINPUT ========================================================
 
-		instance = GetModuleHandleA(nullptr);
-		WNDCLASSEXA windowClass = {};
-
-		windowClass.cbSize = sizeof(WNDCLASSEXA);
-		windowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-		windowClass.lpfnWndProc = mainWindowCallback;
-		windowClass.hInstance = instance;
-		//windowClass.hIcon = LoadIcon(instance, "IDI_WINLOGO");
-		windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
-		windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 6);
-		windowClass.lpszClassName = name;
-		//windowClass.hIconSm = LoadIcon(windowClass.hInstance, "IDI_ICON");
-
-		const s32 error = RegisterClassExA(&windowClass);
-		GameAssert(error != 0 && "Class registration failed");
-
-		RECT rc = {0, 0, static_cast<LONG>(w), static_cast<LONG>(h)};
-		AdjustWindowRectEx(&rc, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
-		const s32 winStyle = WS_BORDER | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_OVERLAPPED | WS_SYSMENU;
-
-		mainWindow = CreateWindowExA(
-			WS_EX_APPWINDOW,
-			name,
-			name,
-			winStyle,
-			CW_USEDEFAULT,
-			CW_USEDEFAULT,
-			rc.right - rc.left,
-			rc.bottom - rc.top,
-			nullptr,
-			nullptr,
-			instance,
-			nullptr);
-
-		GameAssert(mainWindow != nullptr && "Window creation failed");
-
-		ShowWindow(mainWindow, SW_SHOW);
-		SetForegroundWindow(mainWindow);
-		SetFocus(mainWindow);
-
-		return mainWindow;
-	}
-
-	// ===============================================XINPUT========================================================
 	internal void processXInputDigitalEvent(DWORD xInputButtonState, GameKeyState *oldState, DWORD buttonBit,
 											GameKeyState *newState)
 	{
@@ -473,8 +478,7 @@ namespace Win32
 		return output;
 	}
 
-	// Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
-
+	//? Defines for interfaces (function pointers) that handles XINPUT, if loading of dll fails then user won't hard crash
 	// XInputGetState defines -- "define/typedef trick" from Casey Muratori from "handmade hero" :)
 	#define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 	typedef X_INPUT_GET_STATE(X_Input_Get_State);
@@ -515,6 +519,7 @@ namespace Win32
 		}
 	}
 	// =============================================== MOUSE RAW INPUT ===========================================================
+
 	internal void RegisterMouseForRawInput(HWND window = nullptr)
 	{
 		RAWINPUTDEVICE rawDevices[1];
@@ -531,7 +536,8 @@ namespace Win32
 			GameAssert(0);
 		}
 	}
-	// ==============================================================================================================================
+	// =============================================== UTILITIES ==============================================================
+
 	internal auto parseWaveData(void *wavMemory)
 	{
 		if (wavMemory == nullptr)
@@ -583,7 +589,8 @@ namespace Win32
 		EnumDisplaySettingsA(0 , ENUM_CURRENT_SETTINGS, &devInfo);
 		return devInfo.dmDisplayFrequency;
 	}
-// ===================================================== GAME HOT-RELOADING ===============================================================
+	// ================================================== GAME HOT-RELOADING =========================================================
+
 	internal FILETIME getFileWriteTime(const char *name)
 	{
 		FILETIME time = {};
@@ -630,10 +637,10 @@ namespace Win32
 		gameCode->isValid = false;
 		gameCode->update = gameFullUpdateNotLoaded;
 	}
+// ================================================= DEBUG INTERNAL FUNCTIONS ==========================================================
 
-// ================================================= DEBUG INTERNAL FUNCTIONS ==============================================================
 #if GAME_INTERNAL
-	DebugFileOutput DebugReadFile(char *fileName)
+	DebugFileOutput debugReadFile(char *fileName)
 	{
 		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
 		auto d = deferFunction([&] { CloseHandle(fileHandle); });
@@ -672,7 +679,7 @@ namespace Win32
 		return (out);
 	}
 
-	b32 DebugWriteFile(char *fileName, void *memory, u32 memSize)
+	b32 debugWriteFile(char *fileName, void *memory, u32 memSize)
 	{
 		b32 isSuccessful = false;
 		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
@@ -698,7 +705,7 @@ namespace Win32
 		return isSuccessful;
 	}
 
-	void DebugFreeFileMemory(void *memory)
+	void debugFreeFileMemory(void *memory)
 	{
 		if (memory != nullptr)
 		{

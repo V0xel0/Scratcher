@@ -9,7 +9,7 @@ enum SoundTypeID
 };
 
 //TODO: TEST-ONLY, function for checking basic pixel drawing & looping
-internal void gameRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
+internal void gameRender(const GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
 {
 	s32 width = gameBuffer->width;
 	s32 height = gameBuffer->height;
@@ -49,7 +49,7 @@ internal void gameRender(GameScreenBuffer *gameBuffer, const s32 offsetX, const 
 }
 
 //TODO: TEST-ONLY TEMPORARY function
-internal void playerRender(GameScreenBuffer *gameBuffer, const s32 playerX,  s32 playerY)
+internal void playerRender(const GameScreenBuffer *gameBuffer, const s32 playerX,  const s32 playerY)
 {
 	byte *bufferEnd = (byte *)gameBuffer->memory + gameBuffer->pitch * gameBuffer->height;
 
@@ -67,7 +67,6 @@ internal void playerRender(GameScreenBuffer *gameBuffer, const s32 playerX,  s32
 			}
 			pixel += gameBuffer->pitch;
 		}
-		
 	}
 }
 
@@ -94,12 +93,12 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		gameState->colorOffsetX = 0;
 		gameState->colorOffsetY = 0;
 
-		//TODO: TEST-ONLY, All sound loading by "DebugReadFile" is temporary!
-		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("D:/menu_1.wav");
+		//TODO: TEST-ONLY, All sound loading by "debugReadFile" is temporary!
+		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("../assets/menu_1.wav");
 		soundOutput->buffer[Menu1].data = rawFileData;
 		soundOutput->buffer[Menu1].size = rawFileSize;
 
-		auto &&[otherFileData, otherFileSize] = memory->DEBUGPlatformReadFile("D:/laser_1.wav");
+		auto &&[otherFileData, otherFileSize] = memory->DEBUGPlatformReadFile("../assets/laser_1.wav");
 		soundOutput->buffer[LaserBullet].data = otherFileData;
 		soundOutput->buffer[LaserBullet].size = otherFileSize;
 
@@ -117,43 +116,41 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		memory->isInitialized = true;
 	}
 
-	for (s32 controllerID = 0; controllerID < ArrayCount32(inputs->controllers); ++controllerID)
+	for (auto& controller : inputs->controllers)
 	{
-		GameController *controller = getGameController(inputs, controllerID);
-
 		// Analog input processing
-		if (controller->isGamePad)
+		if (controller.isGamePad)
 		{
-			//gameState->colorOffsetX += (s32)(controller->gamePad.StickAverageX*4);
-			//gameState->colorOffsetY -= (s32)(controller->gamePad.StickAverageY*4);
-			gameState->playerX += (s32)(controller->gamePad.StickAverageX*4);
-			gameState->playerY -= (s32)(controller->gamePad.StickAverageY*4);
+			//gameState->colorOffsetX += (s32)(controller.gamePad.StickAverageX*4);
+			//gameState->colorOffsetY -= (s32)(controller.gamePad.StickAverageY*4);
+			gameState->playerX += (s32)(controller.gamePad.StickAverageX*4);
+			gameState->playerY -= (s32)(controller.gamePad.StickAverageY*4);
 		}
 		else
 		{
-			gameState->colorOffsetX += controller->mouse.deltaX;
-			gameState->colorOffsetY += controller->mouse.deltaY;
-			gameState->colorOffsetX += controller->mouse.deltaWheel;
+			gameState->colorOffsetX += controller.mouse.deltaX;
+			gameState->colorOffsetY += controller.mouse.deltaY;
+			gameState->colorOffsetX += controller.mouse.deltaWheel;
 		}
 		
 		// Digital input processing
-		if (controller->moveUp.wasDown && controller->moveUp.halfTransCount)
+		if (controller.moveUp.wasDown && controller.moveUp.halfTransCount)
 		{
 			soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
 		}
-		if (controller->moveDown.wasDown && controller->moveDown.halfTransCount)
+		if (controller.moveDown.wasDown && controller.moveDown.halfTransCount)
 		{
 			soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
 		}
-		if (controller->moveLeft.wasDown)
+		if (controller.moveLeft.wasDown)
 		{
 			gameState->colorOffsetX -= 1;
 		}
-		if (controller->moveRight.halfTransCount)
+		if (controller.moveRight.halfTransCount)
 		{
 			gameState->colorOffsetX += 100;
 		}
-		if (controller->actionFire.wasDown && controller->actionFire.halfTransCount)
+		if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
 		{
 			++soundOutput->soundsPlayInfos[LaserBullet].count;
 			gameState->gravityJump = 4.0f;
