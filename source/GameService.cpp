@@ -118,42 +118,52 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 	for (auto& controller : inputs->controllers)
 	{
-		// Analog input processing
-		if (controller.isGamePad)
+		if(controller.isConnected)
 		{
-			//gameState->colorOffsetX += (s32)(controller.gamePad.StickAverageX*4);
-			//gameState->colorOffsetY -= (s32)(controller.gamePad.StickAverageY*4);
-			gameState->playerX += (s32)(controller.gamePad.StickAverageX*4);
-			gameState->playerY -= (s32)(controller.gamePad.StickAverageY*4);
+			// Analog input processing
+			if (controller.isGamePad)
+			{
+				//gameState->colorOffsetX += (s32)(controller.gamePad.StickAverageX*4);
+				//gameState->colorOffsetY -= (s32)(controller.gamePad.StickAverageY*4);
+				gameState->playerX += (s32)(controller.gamePad.StickAverageX*4);
+				gameState->playerY -= (s32)(controller.gamePad.StickAverageY*4);
+			}
+			else
+			{
+				gameState->colorOffsetX += controller.mouse.deltaX;
+				gameState->colorOffsetY += controller.mouse.deltaY;
+				gameState->colorOffsetX += controller.mouse.deltaWheel;
+
+				gameState->playerX = controller.mouse.x;
+				gameState->playerY = controller.mouse.y;
+			}
+			
+			// Digital input processing
+			if (controller.moveUp.wasDown && controller.moveUp.halfTransCount)
+			{
+				soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
+			}
+			if (controller.moveDown.wasDown && controller.moveDown.halfTransCount)
+			{
+				soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
+			}
+			if (controller.moveLeft.wasDown)
+			{
+				gameState->colorOffsetX -= 1;
+			}
+			if (controller.moveRight.halfTransCount)
+			{
+				gameState->colorOffsetX += 100;
+			}
+			if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
+			{
+				++soundOutput->soundsPlayInfos[LaserBullet].count;
+				gameState->gravityJump = 4.0f;
+			}
 		}
 		else
 		{
-			gameState->colorOffsetX += controller.mouse.deltaX;
-			gameState->colorOffsetY += controller.mouse.deltaY;
-			gameState->colorOffsetX += controller.mouse.deltaWheel;
-		}
-		
-		// Digital input processing
-		if (controller.moveUp.wasDown && controller.moveUp.halfTransCount)
-		{
-			soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
-		}
-		if (controller.moveDown.wasDown && controller.moveDown.halfTransCount)
-		{
-			soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
-		}
-		if (controller.moveLeft.wasDown)
-		{
-			gameState->colorOffsetX -= 1;
-		}
-		if (controller.moveRight.halfTransCount)
-		{
-			gameState->colorOffsetX += 100;
-		}
-		if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
-		{
-			++soundOutput->soundsPlayInfos[LaserBullet].count;
-			gameState->gravityJump = 4.0f;
+			//TODO: LOG
 		}
 	}
 

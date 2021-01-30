@@ -36,7 +36,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GameAssert(schedulerError);
 
 	// Creation and initalization of platform data and interfaces
-	HWND window = Win32::CreateMainWindow(1920, 1080, "Scratcher");
+	HWND window = Win32::CreateMainWindow(1280, 720, "Scratcher");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1280, 720);
 	Win32::LoadXInputLibrary();
@@ -128,6 +128,8 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		for (s32 i = 0; i < ArrayCount32(newKeyboardMouseController->buttons); ++i)
 		{
 			newKeyboardMouseController->buttons[i].wasDown = oldKeyboardMouseController->buttons[i].wasDown;
+			newKeyboardMouseController->mouse.x = oldKeyboardMouseController->mouse.x;
+			newKeyboardMouseController->mouse.y = oldKeyboardMouseController->mouse.y;
 		}
 
 		while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE))

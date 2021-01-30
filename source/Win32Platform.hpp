@@ -11,6 +11,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include <windows.h>
+#include <windowsx.h>
 #include <mmsystem.h>
 #include <Xinput.h>
 #include <xaudio2.h>
@@ -93,11 +94,11 @@ namespace Win32
 	internal void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer *buffer)
 	{
 		GameAssert(buffer != nullptr);
-		Win32::WindowDimensions dims = Win32::GetWindowClientDimensions(window);
+		Win32::WindowDimensions clientAreaSize = Win32::GetWindowClientDimensions(window);
 		//TODO: BitBlt might be faster
 		StretchDIBits(
 			deviceCtx,
-			0, 0, dims.width, dims.height,
+			0, 0, clientAreaSize.width, clientAreaSize.height,
 			0, 0, buffer->width, buffer->height,
 			buffer->memory, &buffer->info,
 			DIB_RGB_COLORS, SRCCOPY);
@@ -221,7 +222,7 @@ namespace Win32
 	{
 		state->recordID = inputRecordID;
 		state->recordingHandle = CreateFileA(state->recordInputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-		
+
 		//TODO: Save state only instead of whole memory?
 		DWORD bytesToWrite = (DWORD)state->totalSize;
 		AlwaysAssert(state->totalSize == bytesToWrite);
@@ -274,7 +275,6 @@ namespace Win32
 			}
 		}
 	}
-
 	// =========================================== MOUSE & KEYBOARD EVENTS HANDLING ==================================================
 
 	internal void processKeyboardMouseEvent(GameKeyState *newState, const b32 isDown)
@@ -321,8 +321,9 @@ namespace Win32
 			// Only used to get x,y coordinates of cursor in client area of the window
 			case WM_MOUSEMOVE:
 			{
-				keyboardMouse->mouse.x = LOWORD(lParam);
-				keyboardMouse->mouse.y = HIWORD(lParam);
+				//TODO: Make it work when internal buffer is different size than client area
+				keyboardMouse->mouse.x = GET_X_LPARAM(lParam);
+				keyboardMouse->mouse.y = GET_Y_LPARAM(lParam);
 			}
 			break;
 
