@@ -123,8 +123,8 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			// Analog input processing
 			if (controller.isGamePad)
 			{
-				//gameState->colorOffsetX += (s32)(controller.gamePad.StickAverageX*4);
-				//gameState->colorOffsetY -= (s32)(controller.gamePad.StickAverageY*4);
+				// gameState->colorOffsetX += (s32)(controller.gamePad.StickAverageX*4);
+				// gameState->colorOffsetY -= (s32)(controller.gamePad.StickAverageY*4);
 				gameState->playerX += (s32)(controller.gamePad.StickAverageX*4);
 				gameState->playerY -= (s32)(controller.gamePad.StickAverageY*4);
 			}
@@ -132,6 +132,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			{
 				gameState->colorOffsetX += controller.mouse.deltaX;
 				gameState->colorOffsetY += controller.mouse.deltaY;
+
 				gameState->colorOffsetX += controller.mouse.deltaWheel;
 
 				gameState->playerX = controller.mouse.x;
@@ -149,7 +150,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			}
 			if (controller.moveLeft.wasDown)
 			{
-				gameState->colorOffsetX -= 1;
+				gameState->colorOffsetX -= 50;
 			}
 			if (controller.moveRight.halfTransCount)
 			{

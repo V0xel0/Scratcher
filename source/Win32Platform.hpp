@@ -26,16 +26,15 @@ namespace Win32
 	{
 		BITMAPINFO info;
 		void *memory;
+
 		s32 width;
 		s32 height;
 		s32 pitch;
+
+		f32 widthDelta;
+		f32 heightDelta;
 	};
 
-	struct WindowDimensions
-	{
-		s32 width;
-		s32 height;
-	};
 	struct XAudioCustomBuffer
 	{
 		XAUDIO2_BUFFER buffer;
@@ -79,13 +78,13 @@ namespace Win32
 	// ======================================== WINDOW AND GRAPHICS BUFFER =========================================================
 
 	// Used for getting dimensions of client area for passed window
-	internal WindowDimensions GetWindowClientDimensions(HWND window)
+	internal auto GetWindowClientDimensions(HWND window)
 	{
-		WindowDimensions out;
+		struct Output { s32 w; s32 h; } out;
 		RECT rect;
 		GetClientRect(window, &rect);
-		out.width = rect.right - rect.left;
-		out.height = rect.bottom - rect.top;
+		out.w = rect.right - rect.left;
+		out.h = rect.bottom - rect.top;
 		return out;
 	}
 
@@ -94,11 +93,12 @@ namespace Win32
 	internal void UpdateWindow(HDC deviceCtx, HWND window, ScreenBuffer *buffer)
 	{
 		GameAssert(buffer != nullptr);
-		Win32::WindowDimensions clientAreaSize = Win32::GetWindowClientDimensions(window);
+		auto&&[clientAreaWidth, clientAreaHeight] = Win32::GetWindowClientDimensions(window);
+
 		//TODO: BitBlt might be faster
 		StretchDIBits(
 			deviceCtx,
-			0, 0, clientAreaSize.width, clientAreaSize.height,
+			0, 0, clientAreaWidth, clientAreaHeight,
 			0, 0, buffer->width, buffer->height,
 			buffer->memory, &buffer->info,
 			DIB_RGB_COLORS, SRCCOPY);
@@ -118,6 +118,14 @@ namespace Win32
 			HDC deviceCtx = BeginPaint(window, &Paint);
 			Win32::UpdateWindow(deviceCtx, window, &internalBuffer);
 			EndPaint(window, &Paint);
+		}
+		break;
+
+		case WM_SIZE:
+		{
+			auto&&[clientAreaWidth, clientAreaHeight] = Win32::GetWindowClientDimensions(window);
+			internalBuffer.widthDelta = (f32)clientAreaWidth/internalBuffer.width;
+			internalBuffer.heightDelta = (f32)clientAreaHeight/internalBuffer.height;
 		}
 		break;
 
@@ -318,12 +326,10 @@ namespace Win32
 			}
 			break;
 
-			// Only used to get x,y coordinates of cursor in client area of the window
 			case WM_MOUSEMOVE:
 			{
-				//TODO: Make it work when internal buffer is different size than client area
-				keyboardMouse->mouse.x = GET_X_LPARAM(lParam);
-				keyboardMouse->mouse.y = GET_Y_LPARAM(lParam);
+				keyboardMouse->mouse.x = (s32)(GET_X_LPARAM(lParam)/Win32::internalBuffer.widthDelta);
+				keyboardMouse->mouse.y = (s32)(GET_Y_LPARAM(lParam)/Win32::internalBuffer.heightDelta);
 			}
 			break;
 

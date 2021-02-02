@@ -30,15 +30,20 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	const char *gameDllTempPath = "../build/GameServiceTemp.dll";
 	const char *lockPath = "../build/lock.tmp";
 
+	s32 windowWidth = 1280;
+	s32 windowHeight = 720;
+
 	// Windows scheduler setup
 	UINT schedulerGranularity = 1;
 	b32 schedulerError = (timeBeginPeriod(schedulerGranularity) == TIMERR_NOERROR);
 	GameAssert(schedulerError);
 
 	// Creation and initalization of platform data and interfaces
-	HWND window = Win32::CreateMainWindow(1280, 720, "Scratcher");
+	HWND window = Win32::CreateMainWindow(windowWidth,windowHeight, "Scratcher2");
 	HDC deviceContext = GetDC(window);
 	Win32::ResizeInternalBuffer(&Win32::internalBuffer, 1280, 720);
+	Win32::internalBuffer.heightDelta = (f32)windowHeight / Win32::internalBuffer.height;
+	Win32::internalBuffer.widthDelta = (f32)windowWidth  / Win32::internalBuffer.width; 
 	Win32::LoadXInputLibrary();
 	Win32::RegisterMouseForRawInput();
 	QueryPerformanceFrequency(&Win32::clockFrequency);
