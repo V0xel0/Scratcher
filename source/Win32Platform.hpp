@@ -434,14 +434,21 @@ namespace Win32
 					{
 						if(isDown)
 						{
-							if(state->recordID == 0)
+							if(state->playbackID == 0)
 							{
-								Win32::beginInputRecording(state, 1);
+								if(state->recordID == 0)
+								{
+									Win32::beginInputRecording(state, 1);
+								}
+								else
+								{
+									Win32::endInputRecording(state);
+									Win32::beginInputPlayback(state, 1);
+								}
 							}
 							else
 							{
-								Win32::endInputRecording(state);
-								Win32::beginInputPlayback(state, 1);
+								Win32::endInputPlayback(state);
 							}
 						}
 					}	
