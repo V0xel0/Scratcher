@@ -95,9 +95,8 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	GlobalMemoryStatusEx(&memStatus);
 	u64 availablePhysicalMemory = memStatus.ullAvailPhys;
 
-	// Memory platform allocation & state initalization
+	// Platform memory allocation 
 	Win32::PlatformState platformState = {};
-	platformState.recordInputFileName = "input.reci";
 	platformState.totalSize = gameMemory.PermanentStorageSize + gameMemory.TransientStorageSize;
 	AlwaysAssert(platformState.totalSize < availablePhysicalMemory && "Download more RAM");
 	platformState.gameMemory =  VirtualAlloc(baseAddress, platformState.totalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -107,6 +106,20 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	gameMemory.PermanentStorage = platformState.gameMemory;
 	gameMemory.TransientStorage = (byte *)gameMemory.PermanentStorage + gameMemory.PermanentStorageSize;
 
+	// Initalizing state for recording
+	platformState.recordInputFileName = "input.reci";
+	platformState.recordStateFileName = "state.reci";
+	platformState.fileHandle = CreateFileA(platformState.recordStateFileName, 
+											GENERIC_WRITE | GENERIC_READ, 0, 0, CREATE_ALWAYS, 0, 0);
+	LARGE_INTEGER maxSize = {};
+	maxSize.QuadPart = platformState.totalSize;
+	platformState.memoryMapHandle = CreateFileMapping(platformState.fileHandle, 0, PAGE_READWRITE,
+													maxSize.HighPart, maxSize.LowPart, 0);
+	platformState.mappedMemory = MapViewOfFile(platformState.memoryMapHandle, FILE_MAP_ALL_ACCESS, 0, 0, platformState.totalSize);
+	if(!platformState.mappedMemory)
+	{ //TODO: LOG 
+	}
+	
 	QueryPerformanceCounter(&startFrameCounter);
 	Win32::DynamicGameCode gameCode = Win32::loadGameCode(gameDllPath, gameDllTempPath, lockPath);
 

@@ -56,11 +56,14 @@ namespace Win32
 
 		HANDLE recordingHandle;
 		s32 recordID;
-
 		HANDLE playbackHandle;
 		s32 playbackID;
-
 		const char *recordInputFileName;
+		const char *recordStateFileName;
+
+		HANDLE fileHandle;
+		HANDLE memoryMapHandle;
+		void *mappedMemory;
 	};
 
 	// ========================================== INTERNAL GLOBALS =================================================================
@@ -225,17 +228,14 @@ namespace Win32
 	}
 	// ========================================= INPUT & GAME STATE RECORDING ============================================================
 
-	//TODO: Use additional memory and write lazily to disk instead?
 	internal void beginInputRecording(PlatformState *state, const s32 inputRecordID)
 	{
-		state->recordID = inputRecordID;
-		state->recordingHandle = CreateFileA(state->recordInputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-
-		//TODO: Save state only instead of whole memory?
-		DWORD bytesToWrite = (DWORD)state->totalSize;
-		AlwaysAssert(state->totalSize == bytesToWrite);
-		DWORD bytesWritten;
-		WriteFile(state->recordingHandle, state->gameMemory, bytesToWrite, &bytesWritten, 0);
+		if (state->mappedMemory)
+		{
+			state->recordID = inputRecordID;
+			state->recordingHandle = CreateFileA(state->recordInputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+			CopyMemory(state->mappedMemory, state->gameMemory, state->totalSize);
+		}
 	}
 
 	internal void endInputRecording(PlatformState *state)
@@ -244,15 +244,14 @@ namespace Win32
 		state->recordID = 0;
 	}
 
-	internal void beginInputPlayback(PlatformState *state, s32 inputPlaybackID)
+	internal void beginInputPlayback(PlatformState *state, const s32 inputPlaybackID)
 	{
-		state->playbackID = inputPlaybackID;
-		state->playbackHandle = CreateFileA(state->recordInputFileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-
-		DWORD bytesToRead = (DWORD)state->totalSize;
-		AlwaysAssert(state->totalSize == bytesToRead);
-		DWORD bytesRead;
-		ReadFile(state->playbackHandle, state->gameMemory, bytesToRead, &bytesRead, 0);
+		if (state->mappedMemory)
+		{
+			state->playbackID = inputPlaybackID;
+			state->playbackHandle = CreateFileA(state->recordInputFileName, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
+			CopyMemory(state->gameMemory, state->mappedMemory, state->totalSize);
+		}
 	}
 
 	internal void endInputPlayback(PlatformState *state)
