@@ -4,7 +4,7 @@
 #include "GameService.hpp"
 #include "Win32Platform.hpp"
 
-#include <omp.h>
+//#include <omp.h>
 #include <cstdio>
 
 //TODO: Later consider grouping all timestamps and process them in aggregate
@@ -26,8 +26,8 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	AlwaysAssert(sizeof(void*) == 8);
 
-	const char *gameDllPath = "../build/GameService.dll";
-	const char *gameDllTempPath = "../build/GameServiceTemp.dll";
+	const char *gameDllPath = "../build/Game.dll";
+	const char *gameDllTempPath = "../build/GameTemp.dll";
 	const char *lockPath = "../build/lock.tmp";
 
 	s32 windowWidth = 1280;

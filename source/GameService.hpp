@@ -1,18 +1,9 @@
 #pragma once
 
-#include "Utils.hpp"
-
 //? This header declares services and data which game then provides to platform layer
 //? Architecture style inspired from "handmadehero" series - Game is treated as a service to OS, instead of
 //? abstracting platform code and handling it as kind of "Virtual OS"
 
-#if GAME_INTERNAL
-	struct DebugFileOutput
-	{
-		void *data;
-		u32 dataSize;
-	};
-#endif
 struct GameScreenBuffer
 {
 	void *memory;
@@ -114,6 +105,13 @@ inline GameController *getGameController(GameInput *input, u32 controllerID)
     return &input->controllers[controllerID];
 }
 
+#if GAME_INTERNAL
+	struct DebugFileOutput
+	{
+		void *data;
+		u32 dataSize;
+	};
+#endif
 struct GameMemory
 {
 	b32 isInitialized;
@@ -128,17 +126,6 @@ struct GameMemory
     DebugFileOutput (*DEBUGPlatformReadFile)(char *);
     b32 (*DEBUGPlatformWriteFile)(char *, void *, u32);
 #endif
-};
-
-struct GameState
-{
-	s32 colorOffsetX;
-	s32 colorOffsetY;
-
-	s32 playerX;
-	s32 playerY;
-
-	f32 gravityJump;
 };
 
 #define GAME_FULL_UPDATE(name) void name(GameMemory *memory, GameScreenBuffer *buffer, GameSoundOutput *sounds, GameInput *inputs)

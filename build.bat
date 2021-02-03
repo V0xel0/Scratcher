@@ -12,7 +12,7 @@ del *.pdb > NUL 2> NUL
 
 REM Hot-Reload build
 echo WAITING FOR PDB > lock.tmp
-cl.exe %compilerFlags% ../source/GameService.cpp /LD /link /EXPORT:gameFullUpdate
+cl.exe %compilerFlags% ../source/Game.cpp /LD /link /EXPORT:gameFullUpdate
 del lock.tmp
 cl.exe %compilerFlags% ../source/Win32EntryPoint.cpp /link %linkerFlags%
 

@@ -1,4 +1,7 @@
+#include "Utils.hpp"
+#include "Allocators.hpp"
 #include "GameService.hpp"
+#include "Game.hpp"
 #include "cmath"
 
 enum SoundTypeID
@@ -70,51 +73,51 @@ internal void playerRender(const GameScreenBuffer *gameBuffer, const s32 playerX
 	}
 }
 
-internal void gameSendSoundsToPlay(GameSoundOutput *platform, GameSoundOutput *gameOut)
-{
-	platform->areNewSoundAssetsAdded = gameOut->areNewSoundAssetsAdded;
-	platform->buffer = gameOut->buffer;
-	platform->maxSoundAssets = gameOut->maxSoundAssets;
-	platform->soundsPlayInfos = gameOut->soundsPlayInfos;
-	platform->masterVolume = gameOut->masterVolume;
-}
-
 extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
-
-	//TODO: Should Memory for sound  be from additional platform allocation? - same as with framebuffer
-	GameSoundOutput *soundOutput = (GameSoundOutput *)memory->TransientStorage;
-	soundOutput->buffer = (GameSoundAsset *)((byte *)memory->TransientStorage + sizeof(GameSoundOutput));
-	soundOutput->soundsPlayInfos = (GameSoundPlayInfo *)((byte *)memory->TransientStorage + 2 * sizeof(GameSoundAsset) + sizeof(GameSoundOutput));
 
 	if (!memory->isInitialized)
 	{
 		gameState->colorOffsetX = 0;
 		gameState->colorOffsetY = 0;
 
+		arenaInit(&gameState->worldStorage, memory->PermanentStorageSize - sizeof(gameState), (byte *)memory->PermanentStorage + sizeof(GameState) );
+		arenaInit(&gameState->assetsStorage, memory->TransientStorageSize, (byte*)memory->TransientStorage);
+
 		//TODO: TEST-ONLY, All sound loading by "debugReadFile" is temporary!
+		gameState->soundsAssetCount = 2;
+		gameState->soundsBuffer = arenaPush<GameSoundAsset>(&gameState->assetsStorage, gameState->soundsAssetCount);
+		gameState->soundInfos = arenaPush<GameSoundPlayInfo>(&gameState->assetsStorage, gameState->soundsAssetCount);
+
 		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("../assets/menu_1.wav");
-		soundOutput->buffer[Menu1].data = rawFileData;
-		soundOutput->buffer[Menu1].size = rawFileSize;
+		gameState->soundsBuffer[Menu1].data = rawFileData;
+		gameState->soundsBuffer[Menu1].size = rawFileSize;
 
 		auto &&[otherFileData, otherFileSize] = memory->DEBUGPlatformReadFile("../assets/laser_1.wav");
-		soundOutput->buffer[LaserBullet].data = otherFileData;
-		soundOutput->buffer[LaserBullet].size = otherFileSize;
+		gameState->soundsBuffer[LaserBullet].data = otherFileData;
+		gameState->soundsBuffer[LaserBullet].size = otherFileSize;
 
-		soundOutput->maxSoundAssets = 2;
-		soundOutput->areNewSoundAssetsAdded = true;
+		sounds->soundsPlayInfos = gameState->soundInfos;
+
 		//TODO: TEST-ONLY
-		++soundOutput->soundsPlayInfos[Menu1].count;
-		soundOutput->soundsPlayInfos[Menu1].isRepeating = true;
-		soundOutput->soundsPlayInfos[LaserBullet].isRepeating = false;
-		soundOutput->masterVolume = 0.1f;
+		sounds->areNewSoundAssetsAdded = true;
+		++sounds->soundsPlayInfos[Menu1].count;
+		sounds->soundsPlayInfos[Menu1].isRepeating = true;
+		sounds->soundsPlayInfos[LaserBullet].isRepeating = false;
+
 		//TODO: TEST-ONLY, SOME TEMPORARY LOGIC
 		gameState->playerX = 100;
 		gameState->playerY = 100;
 
 		memory->isInitialized = true;
 	}
+
+	// Fill platform audio buffer
+	sounds->buffer = gameState->soundsBuffer;
+	sounds->soundsPlayInfos = gameState->soundInfos;
+	sounds->maxSoundAssets = gameState->soundsAssetCount;
+	sounds->masterVolume = 0.1f;
 
 	for (auto& controller : inputs->controllers)
 	{
@@ -142,11 +145,11 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			// Digital input processing
 			if (controller.moveUp.wasDown && controller.moveUp.halfTransCount)
 			{
-				soundOutput->masterVolume = clamp(soundOutput->masterVolume + 0.015f, 0.0f, 1.0f);
+				sounds->masterVolume = clamp(sounds->masterVolume + 0.015f, 0.0f, 1.0f);
 			}
 			if (controller.moveDown.wasDown && controller.moveDown.halfTransCount)
 			{
-				soundOutput->masterVolume = clamp(soundOutput->masterVolume - 0.015f, 0.0f, 1.0f);
+				sounds->masterVolume = clamp(sounds->masterVolume - 0.015f, 0.0f, 1.0f);
 			}
 			if (controller.moveLeft.wasDown)
 			{
@@ -158,7 +161,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			}
 			if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
 			{
-				++soundOutput->soundsPlayInfos[LaserBullet].count;
+				++sounds->soundsPlayInfos[LaserBullet].count;
 				gameState->gravityJump = 4.0f;
 			}
 		}
@@ -175,9 +178,6 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 	}
 	gameState->gravityJump -= 0.045f;
 
-	gameSendSoundsToPlay(sounds, soundOutput);
 	gameRender(buffer, gameState->colorOffsetX, gameState->colorOffsetY);
 	playerRender(buffer, gameState->playerX, gameState->playerY);
-
-	soundOutput->areNewSoundAssetsAdded = false;
 }
