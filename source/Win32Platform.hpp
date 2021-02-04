@@ -414,11 +414,11 @@ namespace Win32
 					}
 					else if (vkCode == VK_UP)
 					{
-						Win32::processKeyboardMouseEvent(&keyboardMouse->moveUp, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->action1, isDown);
 					}
 					else if (vkCode == VK_DOWN)
 					{
-						Win32::processKeyboardMouseEvent(&keyboardMouse->moveDown, isDown);
+						Win32::processKeyboardMouseEvent(&keyboardMouse->action2, isDown);
 					}
 					else if (vkCode == VK_LEFT)
 					{

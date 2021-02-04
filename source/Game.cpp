@@ -16,7 +16,7 @@ enum SoundTypeID
 //TODO: Temporary
 global_variable constexpr s32 worldWidth = 24;
 global_variable constexpr s32 worldHeight = 24;
-global_variable byte worldMap[worldWidth][worldHeight]
+global_variable byte worldMap[worldHeight][worldWidth]
 {
   {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
   {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
@@ -148,10 +148,10 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		sounds->soundsPlayInfos[LaserBullet].isRepeating = false;
 
 		//TODO: TEST-ONLY, SOME TEMPORARY LOGIC
-		gameState->playerPosition.x = 22;
-		gameState->playerPosition.y = 12;
-		gameState->playerDirection = {-1.0f, 0.0f};
-		gameState->projectionPlane = {0.0f, 0.66f};
+		gameState->playerPosition.x = 12;
+		gameState->playerPosition.y = 22;
+		gameState->playerDirection = {0.0f, -1.0f};
+		gameState->projectionPlane = {1.0f, 0.0f};
 
 		memory->isInitialized = true;
 	}
@@ -175,7 +175,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			}
 			else
 			{
-				f32 rotateSpeed = -(f32)controller.mouse.deltaX * 0.025f;
+				f32 rotateSpeed = (f32)controller.mouse.deltaX * 0.025f;
 
 				f32 oldDirX = gameState->playerDirection.x;
 				gameState->playerDirection.x = gameState->playerDirection.x * cos(rotateSpeed) - gameState->playerDirection.y * sin(rotateSpeed);
@@ -190,31 +190,38 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			if (controller.moveUp.wasDown )
 			{
 				f32 moveSpeed = 0.5f;
-				if(worldMap[s32(gameState->playerPosition.x + gameState->playerDirection.x * moveSpeed)][s32(gameState->playerPosition.y)] == 0) 
+				if(worldMap[s32(gameState->playerPosition.y)][s32(gameState->playerPosition.x + gameState->playerDirection.x * moveSpeed)] == 0) 
 					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
-      			if(worldMap[s32(gameState->playerPosition.x)][s32(gameState->playerPosition.y + gameState->playerDirection.y * moveSpeed)] == 0)
+      			if(worldMap[s32(gameState->playerPosition.y + gameState->playerDirection.y * moveSpeed)][s32(gameState->playerPosition.x)] == 0)
 					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
 			}
 			if (controller.moveDown.wasDown)
 			{
 				f32 moveSpeed = 0.5f;
-				if(worldMap[s32(gameState->playerPosition.x - gameState->playerDirection.x * moveSpeed)][s32(gameState->playerPosition.y)] == 0) 
+				if(worldMap[s32(gameState->playerPosition.y)][s32(gameState->playerPosition.x - gameState->playerDirection.x * moveSpeed)] == 0) 
 					gameState->playerPosition.x -= gameState->playerDirection.x * moveSpeed;
-      			if(worldMap[s32(gameState->playerPosition.x)][s32(gameState->playerPosition.y - gameState->playerDirection.y * moveSpeed)] == 0)
+      			if(worldMap[s32(gameState->playerPosition.y - gameState->playerDirection.y * moveSpeed)][s32(gameState->playerPosition.x)] == 0)
 					gameState->playerPosition.y -=  gameState->playerDirection.y * moveSpeed;
 			}
 			if (controller.moveLeft.wasDown)
 			{
 				
 			}
-			if (controller.moveRight.wasDown)
+			if (controller.moveRight.wasDown  && controller.moveRight.halfTransCount)
 			{
-				
 			}
 			if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
 			{
 				++sounds->soundsPlayInfos[LaserBullet].count;
 				gameState->gravityJump = 4.0f;
+			}
+			if (controller.action1.wasDown && controller.action1.halfTransCount)
+			{
+				gameState->projectionPlane.y -= 0.1f;
+			}
+			if (controller.action2.wasDown && controller.action2.halfTransCount)
+			{
+				gameState->projectionPlane.y += 0.1f;
 			}
 		}
 		else
@@ -302,7 +309,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 				side = 1;
 				}
 				//Check if ray has hit a wall
-				if(worldMap[mapX][mapY] > 0) hit = 1;
+				if(worldMap[mapY][mapX] > 0) hit = 1;
 			}
 			//Calculate distance projected on camera direction (Euclidean distance will give fisheye effect!)
 			if(side == 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
@@ -319,7 +326,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 			//choose wall color
 			u32 color;
-			switch(worldMap[mapX][mapY])
+			switch(worldMap[mapY][mapX])
 			{
 				case 1:  color = (u32)0xFF'FF'00'00;	break; //red
 				case 2:  color = (u32)0x00'00'F0'00;	break; //green
@@ -329,7 +336,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			}
 
 			//give x and y sides different brightness
-			if(side == 1) {color = color / 2;}
+			if(side == 0) {color = color / 2;}
 
 			//draw the pixels of the stripe as a vertical line
 			drawRectangle(buffer, {(f32)x, (f32)drawStart}, {(f32)x+1, (f32)drawEnd}, color);
