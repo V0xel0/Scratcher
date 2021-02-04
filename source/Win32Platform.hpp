@@ -199,7 +199,7 @@ namespace Win32
 		ShowWindow(mainWindow, SW_SHOW);
 		SetForegroundWindow(mainWindow);
 		SetFocus(mainWindow);
-
+		ShowCursor(false);
 		return mainWindow;
 	}
 

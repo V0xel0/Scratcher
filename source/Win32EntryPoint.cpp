@@ -292,7 +292,7 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		frameTimeMs =  ElapsedMsHere(startFrameCounter.QuadPart);
 		QueryPerformanceCounter(&startFrameCounter);
-#if 1
+#if 0
 		char tbuffer[32];
 		sprintf(tbuffer, "Ms: %.02f\n", frameTimeMs);
 		OutputDebugStringA(tbuffer);
