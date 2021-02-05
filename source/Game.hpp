@@ -1,6 +1,14 @@
 #pragma once
 
 global_variable constexpr s32 MAX_TEXTURES = 3;
+
+enum GunType
+{
+	rayGun,
+	greenGun,
+	CountOfGunTypes
+};
+
 struct World
 {
 	s32 width;
@@ -15,6 +23,13 @@ struct Texture
 	s32 size;
 	u32 *pixels;
 };
+
+struct GunTexture
+{
+	s32 alignX;
+	s32 alignY;
+	Texture anim0;
+};
 struct GameState
 {
 	AllocArena worldStorage;
@@ -25,7 +40,8 @@ struct GameState
 	GameSoundPlayInfo *soundInfos;
 	s32 soundsAssetCount;
 
-	Texture textures[MAX_TEXTURES];
+	GunTexture gunTextures[MAX_TEXTURES];
+	GunType activeGun;
 
 	Vec2 playerPosition;
 	Vec2 playerDirection;

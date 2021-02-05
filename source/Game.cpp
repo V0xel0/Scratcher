@@ -246,6 +246,15 @@ internal void drawCrossHair(const GameScreenBuffer *gameBuffer, u32 color = 0xFF
 	drawRectangle(gameBuffer, {(f32)gameBuffer->width/2-2, (f32)gameBuffer->height/2-8}, {(f32)gameBuffer->width/2+2, (f32)gameBuffer->height/2+8});
 }
 
+internal void drawGun(GameScreenBuffer *gameBuffer, GunTexture *gunTexture)
+{
+	//TODO: Change animation sprite here
+	drawTexture(gameBuffer, &gunTexture->anim0, 
+			{(f32)gameBuffer->width/2 - (f32)gunTexture->anim0.width/2, 
+			gameBuffer->height/2 + (f32)gunTexture->anim0.height/2}, 
+			gunTexture->alignX, gunTexture->alignY);
+}
+
 extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 {
 	GameState *gameState = (GameState *)memory->PermanentStorage;
@@ -259,8 +268,6 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		gameState->soundsAssetCount = 2;
 		gameState->soundsBuffer = arenaPush<GameSoundAsset>(&gameState->assetsStorage, gameState->soundsAssetCount);
 		gameState->soundInfos = arenaPush<GameSoundPlayInfo>(&gameState->assetsStorage, gameState->soundsAssetCount);
-
-		gameState->textures[0] = DEBUGLoadTextureFromBMP(memory->DEBUGPlatformReadFile, "../assets/rayGunHD0.bmp");
 
 		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("../assets/menu_1.wav");
 		gameState->soundsBuffer[Menu1].data = rawFileData;
@@ -278,11 +285,21 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		sounds->soundsPlayInfos[Menu1].isRepeating = true;
 		sounds->soundsPlayInfos[LaserBullet].isRepeating = false;
 
-		//TODO: TEST-ONLY, SOME TEMPORARY LOGIC
 		gameState->playerPosition.x = 12;
 		gameState->playerPosition.y = 22;
 		gameState->playerDirection = {0.0f, -1.0f};
 		gameState->projectionPlane = {1.0f, 0.0f};
+
+		// Gun textures
+		gameState->gunTextures[rayGun].anim0 = DEBUGLoadTextureFromBMP(memory->DEBUGPlatformReadFile, "../assets/rayGunHD0.bmp");
+		gameState->gunTextures[rayGun].alignX = 15;
+		gameState->gunTextures[rayGun].alignY = 40;
+
+		gameState->gunTextures[greenGun].anim0 = DEBUGLoadTextureFromBMP(memory->DEBUGPlatformReadFile, "../assets/greenGunHD0.bmp");
+		gameState->gunTextures[greenGun].alignX = 0;
+		gameState->gunTextures[greenGun].alignY = 150;
+
+		gameState->activeGun = rayGun;
 
 		memory->isInitialized = true;
 	}
@@ -315,6 +332,15 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 				f32 oldPlaneX = gameState->projectionPlane.x;
 				gameState->projectionPlane.x = gameState->projectionPlane.x * cos(rotateSpeed) - gameState->projectionPlane.y * sin(rotateSpeed);
 				gameState->projectionPlane.y = oldPlaneX * sin(rotateSpeed) + gameState->projectionPlane.y * cos(rotateSpeed);
+
+				if (controller.mouse.deltaWheel > 30)
+				{
+					gameState->activeGun = greenGun;
+				}
+				else if (controller.mouse.deltaWheel < -30)
+				{
+					gameState->activeGun = rayGun;
+				}
 			}
 			
 			// Digital input processing
@@ -468,7 +494,5 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 	}
 
 	drawCrossHair(buffer);
-	drawTexture(buffer, &gameState->textures[0], 
-				{(f32)buffer->width/2 - (f32)gameState->textures[0].width/2-10, 
-				buffer->height/2 + (f32)gameState->textures[0].height/2 - 40});
+	drawGun(buffer, &gameState->gunTextures[gameState->activeGun]);
 }
