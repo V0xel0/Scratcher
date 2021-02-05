@@ -1,4 +1,6 @@
 #pragma once
+
+global_variable constexpr s32 MAX_TEXTURES = 3;
 struct World
 {
 	s32 width;
@@ -6,6 +8,13 @@ struct World
 	byte *data;
 };
 
+struct Texture
+{
+	s32 width;
+	s32 height;
+	s32 size;
+	u32 *pixels;
+};
 struct GameState
 {
 	AllocArena worldStorage;
@@ -16,12 +25,9 @@ struct GameState
 	GameSoundPlayInfo *soundInfos;
 	s32 soundsAssetCount;
 
-	s32 colorOffsetX;
-	s32 colorOffsetY;
+	Texture textures[MAX_TEXTURES];
 
 	Vec2 playerPosition;
 	Vec2 playerDirection;
 	Vec2 projectionPlane;
-
-	f32 gravityJump;
 };

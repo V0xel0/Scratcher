@@ -1,8 +1,10 @@
 #include "Utils.hpp"
+#include "Intrinsics.hpp"
 #include "GameMath.hpp"
 #include "Allocators.hpp"
 #include "GameService.hpp"
 #include "Game.hpp"
+
 #include <cmath>
 #include <cstring>
 
@@ -44,8 +46,138 @@ global_variable byte worldMap[worldHeight][worldWidth]
   {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
+internal Texture DEBUGLoadTextureFromBMP(DebugFileOutput (*DEBUGPlatformReadFile)(const char *), const char *fileName)
+{
+	#pragma pack(push, 1)
+	struct BmpHeader
+	{
+		u16 type;
+		u32 fileFize;
+		u16 reserved1;
+		u16 reserved2;
+		u32 offset;
+		u32 infoSize;
+		s32 width;
+		s32 height;
+		u16 planes;
+		u16 bitsPerPixel;
+		u32 compression;
+		u32 dataSize;
+		s32 hRez;
+		s32 vRez;
+		u32 colors1;
+		u32 colors2;
+		// Needed for 32bits BMPs
+		u32 redMask;
+		u32 greenMask;
+		u32 blueMask;
+	};
+	#pragma pack(pop)
+
+	Texture out = {};
+	auto &&[fileData, fileSize] = DEBUGPlatformReadFile(fileName);
+
+	if(fileData != nullptr)
+	{
+		BmpHeader *header = (BmpHeader *)fileData;
+		if (header->bitsPerPixel == 32 && header->compression == 3)
+		{
+			out.pixels = (u32*)((byte *)fileData + header->offset);
+			out.height = header->height;
+			out.width = header->width;
+			out.size = header->dataSize;
+
+			auto redShift = findFirstSetLSB(header->redMask);
+			auto greenShift = findFirstSetLSB(header->greenMask);
+			auto blueShift = findFirstSetLSB(header->blueMask);
+			auto alphaShift = findFirstSetLSB(~(header->redMask | header->greenMask | header->blueMask));
+
+			u32 *src = out.pixels;
+			for (s32 y = 0; y < header->height; y++)
+			{
+				for (s32 x = 0; x < header->width; x++)
+				{
+					u32 m = *src;
+					*src++ = (((  (m >> alphaShift) & 0xFF) << 24)	|
+								(((m >> redShift) 	& 0xFF) << 16)	|
+								(((m >> greenShift) & 0xFF) << 8)	|
+								(((m >> blueShift) 	& 0xFF) << 0));
+				}
+			}
+		}
+		else
+		{
+			//TODO: LOG
+			GameAssert(0);
+		}
+	}
+	else
+	{
+		//TODo: LOG
+		GameAssert(0);
+	}
+	return out;
+};	
+
+internal void drawTexture(GameScreenBuffer *gameBuffer, Texture *texture, Vec2 start, s32 alignX = 0, s32 alignY = 0)
+{
+	using std::round;
+
+	start.x -= (f32)alignX;
+	start.y -= (f32)alignY;
+
+	s32 srcOffsetX = 0;
+	s32 srcOffsetY = 0;
+
+	if(start.x < 0)
+		srcOffsetX = (s32)round(-start.x);
+	if(start.y < 0)
+		srcOffsetY = (s32)round(-start.y);
+
+	s32 minX =  max((s32)round(start.x), 0);
+	s32 minY =  max((s32)round(start.y), 0);
+	s32 maxX =  min((s32)round(start.x + (f32)texture->width), gameBuffer->width);
+	s32 maxY =  min((s32)round(start.y + (f32)texture->height), gameBuffer->height);
+
+	u32 *srcRow = texture->pixels + texture->width * (texture->height - 1);
+	srcRow += -srcOffsetY*texture->width + srcOffsetX;
+	u8 *destRow = ((byte *)gameBuffer->memory + minX*gameBuffer->bytesPerPixel + minY*gameBuffer->pitch);
+
+	for (s32 y = minY; y < maxY; y++)
+	{
+		u32 *dest = (u32 *)destRow;
+		u32 *src = srcRow;
+		for (s32 x = minX; x < maxX; x++)
+		{
+			//TODO: Color as vector and premultiply alpha with gamma correction (LUT?)
+			f32 a = (f32)((*src >> 24) & 0xFF) / 255.0f;
+            f32 sr = (f32)((*src >> 16) & 0xFF);
+            f32 sg = (f32)((*src >> 8) & 0xFF);
+            f32 sb = (f32)((*src >> 0) & 0xFF);
+
+            f32 dr = (f32)((*dest >> 16) & 0xFF);
+            f32 dg = (f32)((*dest >> 8) & 0xFF);
+            f32 db = (f32)((*dest >> 0) & 0xFF);
+
+            f32 r = (1.0f-a)*dr + a*sr;
+            f32 g = (1.0f-a)*dg + a*sg;
+            f32 b = (1.0f-a)*db + a*sb;
+
+            *dest = (((u32)(r + 0.5f) << 16) |
+                     ((u32)(g + 0.5f) << 8)	 |
+                     ((u32)(b + 0.5f) << 0));
+            
+            ++dest;
+            ++src;
+		}
+		destRow += gameBuffer->pitch;
+        srcRow -= texture->width;
+	}
+	
+}
+
 //TODO: TEST-ONLY, function for checking basic pixel drawing & looping
-internal void debugDrawGradient(const GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
+internal void DEBUGDrawGradient(const GameScreenBuffer *gameBuffer, const s32 offsetX, const s32 offsetY)
 {
 	s32 width = gameBuffer->width;
 	s32 height = gameBuffer->height;
@@ -120,9 +252,6 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 	if (!memory->isInitialized)
 	{
-		gameState->colorOffsetX = 0;
-		gameState->colorOffsetY = 0;
-
 		arenaInit(&gameState->worldStorage, memory->PermanentStorageSize - sizeof(gameState), (byte *)memory->PermanentStorage + sizeof(GameState) );
 		arenaInit(&gameState->assetsStorage, memory->TransientStorageSize, (byte*)memory->TransientStorage);
 
@@ -130,6 +259,8 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		gameState->soundsAssetCount = 2;
 		gameState->soundsBuffer = arenaPush<GameSoundAsset>(&gameState->assetsStorage, gameState->soundsAssetCount);
 		gameState->soundInfos = arenaPush<GameSoundPlayInfo>(&gameState->assetsStorage, gameState->soundsAssetCount);
+
+		gameState->textures[0] = DEBUGLoadTextureFromBMP(memory->DEBUGPlatformReadFile, "../assets/rayGunHD0.bmp");
 
 		auto &&[rawFileData, rawFileSize] = memory->DEBUGPlatformReadFile("../assets/menu_1.wav");
 		gameState->soundsBuffer[Menu1].data = rawFileData;
@@ -213,7 +344,6 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
 			{
 				++sounds->soundsPlayInfos[LaserBullet].count;
-				gameState->gravityJump = 4.0f;
 			}
 			if (controller.action1.wasDown && controller.action1.halfTransCount)
 			{
@@ -230,21 +360,14 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		}
 	}
 
-	//TODO: TEST-ONLY, SOME TEMPORARY LOGIC
-	if(gameState->gravityJump > 0)
-	{
-		//gameState->playerPosition.y += (s32)(6.0f*sinf(0.5f*PI32*gameState->gravityJump));
-	}
-
-	gameState->gravityJump -= 0.045f;
 	//TODO: change to movaps, movsb or other SSE
 	memset(buffer->memory, 0, buffer->height*buffer->width*buffer->bytesPerPixel);
 	
 	{
 		//TODO: Refactor, understand and optimize all in scope
-		f32 posX = gameState->playerPosition.x, posY = gameState->playerPosition.y;  //x and y start position
-		f32 dirX = gameState->playerDirection.x, dirY = gameState->playerDirection.y; //initial direction vector
-		f32 planeX = gameState->projectionPlane.x, planeY = gameState->projectionPlane.y; //the 2d raycaster version of camera plane
+		f32 posX = gameState->playerPosition.x, posY = gameState->playerPosition.y;
+		f32 dirX = gameState->playerDirection.x, dirY = gameState->playerDirection.y;
+		f32 planeX = gameState->projectionPlane.x, planeY = gameState->projectionPlane.y;
 
 		for(s32 x = 0; x < buffer->width; x++)
 		{
@@ -328,6 +451,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			u32 color;
 			switch(worldMap[mapY][mapX])
 			{
+				// AA'RR'GG'BB
 				case 1:  color = (u32)0xFF'FF'00'00;	break; //red
 				case 2:  color = (u32)0x00'00'F0'00;	break; //green
 				case 3:  color = (u32)0x00'00'00'FF;	break; //blue
@@ -342,5 +466,9 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			drawRectangle(buffer, {(f32)x, (f32)drawStart}, {(f32)x+1, (f32)drawEnd}, color);
 		}
 	}
+
 	drawCrossHair(buffer);
+	drawTexture(buffer, &gameState->textures[0], 
+				{(f32)buffer->width/2 - (f32)gameState->textures[0].width/2-10, 
+				buffer->height/2 + (f32)gameState->textures[0].height/2 - 40});
 }

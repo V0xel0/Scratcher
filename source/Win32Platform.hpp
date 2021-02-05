@@ -653,7 +653,7 @@ namespace Win32
 // ================================================= DEBUG INTERNAL FUNCTIONS ==========================================================
 
 #if GAME_INTERNAL
-	DebugFileOutput debugReadFile(char *fileName)
+	DebugFileOutput debugReadFile(const char *fileName)
 	{
 		HANDLE fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
 		auto d = deferFunction([&] { CloseHandle(fileHandle); });
@@ -692,7 +692,7 @@ namespace Win32
 		return (out);
 	}
 
-	b32 debugWriteFile(char *fileName, void *memory, u32 memSize)
+	b32 debugWriteFile(const char *fileName, void *memory, u32 memSize)
 	{
 		b32 isSuccessful = false;
 		HANDLE fileHandle = CreateFileA(fileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
