@@ -30,6 +30,12 @@ struct GunTexture
 	s32 alignY;
 	Texture anim0;
 };
+
+struct Player
+{
+	Vec2 pos;
+	Vec2 dir;
+};
 struct GameState
 {
 	AllocArena worldStorage;
@@ -44,7 +50,6 @@ struct GameState
 	GunTexture gunTextures[MAX_TEXTURES];
 	GunType activeGun;
 
-	Vec2 playerPosition;
-	Vec2 playerDirection;
+	Player player;
 	Vec2 projectionPlane;
 };

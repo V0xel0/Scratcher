@@ -46,18 +46,32 @@ global_variable byte worldMap[worldHeight][worldWidth]
   {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
-//TODO: map is global now, later pass pointer here
-internal b8 checkMapCollisionX(const Vec2 pos, const Vec2 dir, const f32 speed)
+internal b8 checkMapCollision(const Vec2 pos)
 {
 	b8 out = false;
-	out = worldMap[s32(pos.y)][s32(pos.x + dir.x * speed)] == 0 ? true : false;
+	out = worldMap[s32(pos.y)][s32(pos.x)] == 0 ? true : false;
 	return out;
 }
 
-internal b8 checkMapCollisionY(const Vec2 pos, const Vec2 dir, const f32 speed)
+internal Vec2 movePlayer(const Player player, const f32 speedDir, const f32 speedStrife)
 {
-	b8 out = false;
-	out = worldMap[s32(pos.y + dir.y * speed)][s32(pos.x)] == 0 ? true : false;
+	Vec2 newPos = player.pos + player.dir * speedDir;
+	Vec2 out = player.pos;
+
+	if( checkMapCollision({newPos.x, player.pos.y}) )
+	{
+		out.x = newPos.x;
+	}
+	if( checkMapCollision({player.pos.x, newPos.y}) )
+	{
+		out.y = newPos.y;
+	}
+
+	newPos = out + Vec2{-player.dir.y, player.dir.x} * speedStrife;
+	if ( checkMapCollision(newPos) )
+	{
+		out = newPos;
+	}
 	return out;
 }
 
@@ -301,9 +315,9 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		sounds->soundsPlayInfos[Menu1].isRepeating = true;
 		sounds->soundsPlayInfos[LaserBullet].isRepeating = false;
 
-		gameState->playerPosition.x = 12;
-		gameState->playerPosition.y = 22;
-		gameState->playerDirection = {0.0f, -1.0f};
+		gameState->player.pos.x = 12;
+		gameState->player.pos.y = 22;
+		gameState->player.dir = {0.0f, -1.0f};
 		gameState->projectionPlane = {1.0f, 0.0f};
 
 		// Gun textures
@@ -327,27 +341,19 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			// Analog input processing
 			if (controller.isGamePad)
 			{
-				//gameState->playerPosition.x += (s32)(controller.gamePad.leftStickAvgX*4);
-				//gameState->playerPosition.y -= (s32)(controller.gamePad.leftStickAvgY*4);
-				f32 moveSpeed = (controller.gamePad.leftStickAvgX + controller.gamePad.leftStickAvgY)/2;
-				//f32 moveSpeedY = controller.gamePad.leftStickAvgY;
-				if(checkMapCollisionX(gameState->playerPosition, gameState->playerDirection, moveSpeed))
-				{
-					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
-				}
-      			if(checkMapCollisionY(gameState->playerPosition, gameState->playerDirection, moveSpeed))
-				{
-					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
-				}
-				
-				f32 rotateSpeed = controller.gamePad.rightStickAvgX * 0.5f;
-				gameState->playerDirection = rotate2D(gameState->playerDirection, rotateSpeed);
+				f32 moveSpeed = controller.gamePad.leftStickAvgY * 0.5f;
+				f32 strifeSpeed = controller.gamePad.leftStickAvgX * 0.5f;
+
+				gameState->player.pos = movePlayer(gameState->player, moveSpeed, strifeSpeed);
+
+				f32 rotateSpeed = controller.gamePad.rightStickAvgX * 0.25f;
+				gameState->player.dir = rotate2D(gameState->player.dir, rotateSpeed);
 				gameState->projectionPlane = rotate2D(gameState->projectionPlane, rotateSpeed);
 			}
 			else
 			{
 				f32 rotateSpeed = (f32)controller.mouse.deltaX * 0.025f;
-				gameState->playerDirection = rotate2D(gameState->playerDirection, rotateSpeed);
+				gameState->player.dir = rotate2D(gameState->player.dir, rotateSpeed);
 				gameState->projectionPlane = rotate2D(gameState->projectionPlane, rotateSpeed);
 
 				if (controller.mouse.deltaWheel > 30)
@@ -364,32 +370,22 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			if (controller.moveUp.wasDown )
 			{
 				f32 moveSpeed = 0.5f;
-				if(checkMapCollisionX(gameState->playerPosition, gameState->playerDirection, moveSpeed))
-				{
-					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
-				}
-      			if(checkMapCollisionY(gameState->playerPosition, gameState->playerDirection, moveSpeed))
-				{
-					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
-				}
+				gameState->player.pos = movePlayer(gameState->player, moveSpeed, 0);
 			}
 			if (controller.moveDown.wasDown)
 			{
 				f32 moveSpeed = -0.5f;
-				if(checkMapCollisionX(gameState->playerPosition, gameState->playerDirection, moveSpeed))
-				{
-					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
-				}
-      			if(checkMapCollisionY(gameState->playerPosition, gameState->playerDirection, moveSpeed))
-				{
-					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
-				}
+				gameState->player.pos = movePlayer(gameState->player, moveSpeed, 0);
 			}
 			if (controller.moveLeft.wasDown)
 			{
+				f32 strifeSpeed = -0.5f;
+				gameState->player.pos = movePlayer(gameState->player, 0, strifeSpeed);
 			}
-			if (controller.moveRight.wasDown  && controller.moveRight.halfTransCount)
+			if (controller.moveRight.wasDown)
 			{
+				f32 strifeSpeed = 0.5f;
+				gameState->player.pos = movePlayer(gameState->player, 0, strifeSpeed);
 			}
 			if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
 			{
@@ -415,8 +411,8 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 	
 	{
 		//TODO: Refactor, understand and optimize all in scope
-		f32 posX = gameState->playerPosition.x, posY = gameState->playerPosition.y;
-		f32 dirX = gameState->playerDirection.x, dirY = gameState->playerDirection.y;
+		f32 posX = gameState->player.pos.x, posY = gameState->player.pos.y;
+		f32 dirX = gameState->player.dir.x, dirY = gameState->player.dir.y;
 		f32 planeX = gameState->projectionPlane.x, planeY = gameState->projectionPlane.y;
 
 		for(s32 x = 0; x < buffer->width; x++)
