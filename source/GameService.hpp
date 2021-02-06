@@ -52,8 +52,11 @@ struct GameMouseData
 
 struct GameGamePadData
 {
-	f32 StickAverageX;
-	f32 StickAverageY;
+	f32 leftStickAvgX;
+	f32 leftStickAvgY;
+	
+	f32 rightStickAvgX;
+	f32 rightStickAvgY;
 };
 
 struct GameController

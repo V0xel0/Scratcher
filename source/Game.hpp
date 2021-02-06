@@ -38,6 +38,7 @@ struct GameState
 	AllocArena assetsStorage;
 	GameSoundAsset *soundsBuffer;
 	GameSoundPlayInfo *soundInfos;
+	f32 soundMasterVolume;
 	s32 soundsAssetCount;
 
 	GunTexture gunTextures[MAX_TEXTURES];

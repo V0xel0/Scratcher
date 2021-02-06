@@ -176,10 +176,14 @@ s32 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				newGamePadController->isGamePad = true;
 				XINPUT_GAMEPAD *gamePad = &gamePadState.Gamepad;
 
-				newGamePadController->gamePad.StickAverageX = Win32::processXInputAnalogEvent(gamePad->sThumbLX,
+				newGamePadController->gamePad.leftStickAvgX = Win32::processXInputAnalogEvent(gamePad->sThumbLX,
 																							  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
-				newGamePadController->gamePad.StickAverageY = Win32::processXInputAnalogEvent(gamePad->sThumbLY,
+				newGamePadController->gamePad.leftStickAvgY = Win32::processXInputAnalogEvent(gamePad->sThumbLY,
 																							  XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+				newGamePadController->gamePad.rightStickAvgX = Win32::processXInputAnalogEvent(gamePad->sThumbRX,
+																								XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
+				newGamePadController->gamePad.rightStickAvgY = Win32::processXInputAnalogEvent(gamePad->sThumbRY,
+																								XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
 
 				Win32::processXInputDigitalEvent(gamePad->wButtons, &oldGamePadController->moveUp,
 												 XINPUT_GAMEPAD_DPAD_UP, &newGamePadController->moveUp);

@@ -293,6 +293,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		gameState->soundsBuffer[LaserBullet].size = otherFileSize;
 
 		sounds->soundsPlayInfos = gameState->soundInfos;
+		gameState->soundMasterVolume = 0.1f;
 
 		//TODO: TEST-ONLY
 		sounds->areNewSoundAssetsAdded = true;
@@ -319,12 +320,6 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 		memory->isInitialized = true;
 	}
 
-	// Fill platform audio buffer
-	sounds->buffer = gameState->soundsBuffer;
-	sounds->soundsPlayInfos = gameState->soundInfos;
-	sounds->maxSoundAssets = gameState->soundsAssetCount;
-	sounds->masterVolume = 0.1f;
-
 	for (auto& controller : inputs->controllers)
 	{
 		if(controller.isConnected)
@@ -332,9 +327,22 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			// Analog input processing
 			if (controller.isGamePad)
 			{
-				//TODO: Gamepad support
-				//gameState->playerPosition.x += (s32)(controller.gamePad.StickAverageX*4);
-				//gameState->playerPosition.y -= (s32)(controller.gamePad.StickAverageY*4);
+				//gameState->playerPosition.x += (s32)(controller.gamePad.leftStickAvgX*4);
+				//gameState->playerPosition.y -= (s32)(controller.gamePad.leftStickAvgY*4);
+				f32 moveSpeed = (controller.gamePad.leftStickAvgX + controller.gamePad.leftStickAvgY)/2;
+				//f32 moveSpeedY = controller.gamePad.leftStickAvgY;
+				if(checkMapCollisionX(gameState->playerPosition, gameState->playerDirection, moveSpeed))
+				{
+					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
+				}
+      			if(checkMapCollisionY(gameState->playerPosition, gameState->playerDirection, moveSpeed))
+				{
+					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
+				}
+				
+				f32 rotateSpeed = controller.gamePad.rightStickAvgX * 0.5f;
+				gameState->playerDirection = rotate2D(gameState->playerDirection, rotateSpeed);
+				gameState->projectionPlane = rotate2D(gameState->projectionPlane, rotateSpeed);
 			}
 			else
 			{
@@ -379,22 +387,21 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			}
 			if (controller.moveLeft.wasDown)
 			{
-				
 			}
 			if (controller.moveRight.wasDown  && controller.moveRight.halfTransCount)
 			{
 			}
 			if (controller.actionFire.wasDown && controller.actionFire.halfTransCount)
 			{
-				++sounds->soundsPlayInfos[LaserBullet].count;
+				++gameState->soundInfos[LaserBullet].count;
 			}
 			if (controller.action1.wasDown && controller.action1.halfTransCount)
 			{
-				gameState->projectionPlane.y -= 0.1f;
+				gameState->soundMasterVolume = clamp(gameState->soundMasterVolume + 0.1f, 0.0f, 1.0f);
 			}
 			if (controller.action2.wasDown && controller.action2.halfTransCount)
 			{
-				gameState->projectionPlane.y += 0.1f;
+				gameState->soundMasterVolume = clamp(gameState->soundMasterVolume - 0.1f, 0.0f, 1.0f);
 			}
 		}
 		else
@@ -512,4 +519,10 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 	drawCrossHair(buffer);
 	drawGun(buffer, &gameState->gunTextures[gameState->activeGun]);
+
+	// Fill platform audio buffer
+	sounds->masterVolume = gameState->soundMasterVolume;
+	sounds->buffer = gameState->soundsBuffer;
+	sounds->soundsPlayInfos = gameState->soundInfos;
+	sounds->maxSoundAssets = gameState->soundsAssetCount;
 }
