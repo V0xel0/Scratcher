@@ -46,6 +46,21 @@ global_variable byte worldMap[worldHeight][worldWidth]
   {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
 };
 
+//TODO: map is global now, later pass pointer here
+internal b8 checkMapCollisionX(const Vec2 pos, const Vec2 dir, const f32 speed)
+{
+	b8 out = false;
+	out = worldMap[s32(pos.y)][s32(pos.x + dir.x * speed)] == 0 ? true : false;
+	return out;
+}
+
+internal b8 checkMapCollisionY(const Vec2 pos, const Vec2 dir, const f32 speed)
+{
+	b8 out = false;
+	out = worldMap[s32(pos.y + dir.y * speed)][s32(pos.x)] == 0 ? true : false;
+	return out;
+}
+
 internal Texture DEBUGLoadTextureFromBMP(DebugFileOutput (*DEBUGPlatformReadFile)(const char *), const char *fileName)
 {
 	#pragma pack(push, 1)
@@ -324,14 +339,8 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			else
 			{
 				f32 rotateSpeed = (f32)controller.mouse.deltaX * 0.025f;
-
-				f32 oldDirX = gameState->playerDirection.x;
-				gameState->playerDirection.x = gameState->playerDirection.x * cos(rotateSpeed) - gameState->playerDirection.y * sin(rotateSpeed);
-				gameState->playerDirection.y = oldDirX * sin(rotateSpeed) + gameState->playerDirection.y * cos(rotateSpeed);
-
-				f32 oldPlaneX = gameState->projectionPlane.x;
-				gameState->projectionPlane.x = gameState->projectionPlane.x * cos(rotateSpeed) - gameState->projectionPlane.y * sin(rotateSpeed);
-				gameState->projectionPlane.y = oldPlaneX * sin(rotateSpeed) + gameState->projectionPlane.y * cos(rotateSpeed);
+				gameState->playerDirection = rotate2D(gameState->playerDirection, rotateSpeed);
+				gameState->projectionPlane = rotate2D(gameState->projectionPlane, rotateSpeed);
 
 				if (controller.mouse.deltaWheel > 30)
 				{
@@ -347,18 +356,26 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 			if (controller.moveUp.wasDown )
 			{
 				f32 moveSpeed = 0.5f;
-				if(worldMap[s32(gameState->playerPosition.y)][s32(gameState->playerPosition.x + gameState->playerDirection.x * moveSpeed)] == 0) 
+				if(checkMapCollisionX(gameState->playerPosition, gameState->playerDirection, moveSpeed))
+				{
 					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
-      			if(worldMap[s32(gameState->playerPosition.y + gameState->playerDirection.y * moveSpeed)][s32(gameState->playerPosition.x)] == 0)
+				}
+      			if(checkMapCollisionY(gameState->playerPosition, gameState->playerDirection, moveSpeed))
+				{
 					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
+				}
 			}
 			if (controller.moveDown.wasDown)
 			{
-				f32 moveSpeed = 0.5f;
-				if(worldMap[s32(gameState->playerPosition.y)][s32(gameState->playerPosition.x - gameState->playerDirection.x * moveSpeed)] == 0) 
-					gameState->playerPosition.x -= gameState->playerDirection.x * moveSpeed;
-      			if(worldMap[s32(gameState->playerPosition.y - gameState->playerDirection.y * moveSpeed)][s32(gameState->playerPosition.x)] == 0)
-					gameState->playerPosition.y -=  gameState->playerDirection.y * moveSpeed;
+				f32 moveSpeed = -0.5f;
+				if(checkMapCollisionX(gameState->playerPosition, gameState->playerDirection, moveSpeed))
+				{
+					gameState->playerPosition.x += gameState->playerDirection.x * moveSpeed;
+				}
+      			if(checkMapCollisionY(gameState->playerPosition, gameState->playerDirection, moveSpeed))
+				{
+					gameState->playerPosition.y +=  gameState->playerDirection.y * moveSpeed;
+				}
 			}
 			if (controller.moveLeft.wasDown)
 			{

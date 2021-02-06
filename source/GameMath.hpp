@@ -93,6 +93,13 @@ inline Vec2 unit_vector(Vec2 v)
 	return {v.x / v.length(), v.y / v.length()};
 }
 
+inline Vec2 rotate2D(Vec2 v, f32 radians)
+{
+	Vec2 out = {};
+	out.x = v.x * cos(radians) - v.y * sin(radians);
+	out.y = v.x * sin(radians) + v.y * cos(radians);
+	return out;
+}
 union Vec3
 {
 
