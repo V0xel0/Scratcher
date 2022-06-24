@@ -1,6 +1,7 @@
 #pragma once
 #include "Utils.hpp"
 //TODO: Prototype math! NOT FINAL
+//TODO: REMOVE REFERENCES AND REPLACE WITH VALUES! - BETTER FOR x64
 #include <cmath> //TODO: Remove it later
 using std::sqrt;
 
@@ -13,7 +14,7 @@ union Vec2
 		f32 x;
 		f32 y;
 	};
-
+	
 	Vec2 operator-() const { return Vec2{-e[0], -e[1]}; }
 	f32 operator[](s32 i) const { return e[i]; }
 	f32 &operator[](s32 i) { return e[i]; }
@@ -111,6 +112,11 @@ union Vec3
 		f32 y;
 		f32 z;
 
+
+	};
+	//! CHANGED OUTSIDE OF NORMAL PROGRAMMING SESSION
+	struct
+	{
 		f32 r;
 		f32 g;
 		f32 b;

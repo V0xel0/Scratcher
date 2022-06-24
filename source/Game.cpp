@@ -417,7 +417,7 @@ extern "C" GAME_FULL_UPDATE(gameFullUpdate)
 
 		for(s32 x = 0; x < buffer->width; x++)
 		{
-			//calculate ray position and direction
+			//calculate ray position and directiondddd
 			f32 cameraX = 2 * x / (f32)buffer->width - 1; //x-coordinate in camera space
 			f32 rayDirX = dirX + planeX * cameraX;
 			f32 rayDirY = dirY + planeY * cameraX;

@@ -17,12 +17,14 @@ internal void arenaInit(AllocArena *arena, const u64 size, byte *base)
 	arena->prevOffset = 0;
 }
 
+//! (note)FIXED OUT OF NORMAL PROGRAMMING SESSION!
 template<typename T>
 [[nodiscard]]
 T *arenaPush(AllocArena *arena, const u64 count = 1, const u64 alignment = alignof(T))
 {
 	GameAssert( ( (arena->currOffset + sizeof(T)*count) <= arena->maxSize) && "No more memory!" );
-	arena->currOffset = AlignAddressPow2(arena->currOffset, alignment);
+	arena->currOffset = AlignAddressPow2((u64)arena->base + arena->currOffset, alignment);
+	arena->currOffset -= (u64)arena->base;
 	T *out = (T*) ((byte*)arena->base + arena->currOffset);
 	arena->prevOffset = arena->currOffset;
 	arena->currOffset += sizeof(T)*count;
