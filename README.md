@@ -1,4 +1,4 @@
-Written fully from scratch (0 libraries) software rendered raycasting engine. 
+Written fully from scratch (0 libraries) software rendered raycasting engine.   
 Project in WIP.
 ### Features:
 - Hot reloading game .dll
