@@ -1,4 +1,5 @@
-Written fully from scratch (0 libraries) software rendered raycasting engine.
+Written fully from scratch (0 libraries) software rendered raycasting engine. 
+Project in WIP.
 ### Features:
 - Hot reloading game .dll
 - Custom memory managment through Arena Allocators
@@ -8,3 +9,4 @@ Written fully from scratch (0 libraries) software rendered raycasting engine.
 - Recording gameplay state
 - Efficient audio support through XAudio
 - Full software rendering
+- raycasting through DDA, vector based no trigonometric functions
